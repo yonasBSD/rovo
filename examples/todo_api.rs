@@ -1,4 +1,4 @@
-use aide::{axum::IntoApiResponse, openapi::OpenApi, swagger::Swagger};
+use aide::{axum::IntoApiResponse, openapi::OpenApi};
 use axum::{
     extract::{Path, State},
     http::StatusCode,
@@ -177,48 +177,21 @@ async fn main() {
         )
         .init();
 
-    // Initialize state with some example todos
-    let mut todos_map = HashMap::new();
-
-    let todo1_id = Uuid::new_v4();
-    todos_map.insert(
-        todo1_id,
-        TodoItem {
-            id: todo1_id,
-            description: "Try out the CRUD API".into(),
-            complete: false,
-        },
-    );
-
-    let todo2_id = Uuid::new_v4();
-    todos_map.insert(
-        todo2_id,
-        TodoItem {
-            id: todo2_id,
-            description: "Check out Swagger UI".into(),
-            complete: true,
-        },
-    );
-
     let state = AppState {
-        todos: Arc::new(Mutex::new(todos_map)),
+        todos: Arc::new(Mutex::new(HashMap::new())),
     };
 
     let mut api = OpenApi::default();
     api.info.title = "Todo API Example".to_string();
     api.info.description = Some("OpenAPI documentation example using rovo".to_string());
 
-    // Build the router with Swagger UI and API documentation
-    let todo_router = todo_routes(state.clone());
-
-    let app = aide::axum::ApiRouter::new()
-        .nest("/api", todo_router.into_inner())
-        .with_state(state);
-
-    let docs = aide::axum::ApiRouter::new()
-        .route("/", Swagger::new("/api.json").axum_route())
-        .route("/api.json", axum::routing::get(serve_api))
-        .merge(app);
+    // Build the router with Swagger UI and API documentation - all in one place!
+    let app = Router::new()
+        .nest("/api", todo_routes(state.clone()))
+        .with_swagger("/", "/api.json")
+        .with_api_json("/api.json", serve_api)
+        .with_state(state)
+        .finish_api_with_extension(api);
 
     let listener = tokio::net::TcpListener::bind("127.0.0.1:3000")
         .await
@@ -228,7 +201,5 @@ async fn main() {
     info!("Address: http://127.0.0.1:3000");
     info!("OpenAPI spec: http://127.0.0.1:3000/api.json");
 
-    let final_app = docs.finish_api(&mut api).layer(Extension(api));
-
-    axum::serve(listener, final_app).await.unwrap();
+    axum::serve(listener, app).await.unwrap();
 }

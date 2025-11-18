@@ -3,8 +3,8 @@ pub use rovo_macros::rovo;
 // Re-export aide for convenience
 pub use aide;
 
-
 use aide::axum::ApiRouter as AideApiRouter;
+use ::axum::Extension;
 
 /// A drop-in replacement for axum::Router that adds OpenAPI documentation support.
 ///
@@ -56,6 +56,33 @@ where
         self
     }
 
+    /// Add Swagger UI route at the specified path
+    pub fn with_swagger(mut self, swagger_path: &str, api_json_path: &str) -> Self
+    where
+        S: Clone + Send + Sync + 'static,
+    {
+        self.inner = self.inner.route(
+            swagger_path,
+            aide::swagger::Swagger::new(api_json_path).axum_route(),
+        );
+        self
+    }
+
+    /// Add the OpenAPI JSON endpoint
+    pub fn with_api_json<H, T>(
+        mut self,
+        path: &str,
+        handler: H,
+    ) -> Self
+    where
+        H: ::axum::handler::Handler<T, S>,
+        S: Clone + Send + Sync + 'static,
+        T: 'static,
+    {
+        self.inner = self.inner.route(path, ::axum::routing::get(handler));
+        self
+    }
+
     /// Add state to the router
     pub fn with_state<S2>(self, state: S) -> Router<S2>
     where
@@ -69,6 +96,20 @@ where
     /// Finish building the API and return an axum Router for further configuration
     pub fn finish_api(self, api: &mut aide::openapi::OpenApi) -> ::axum::Router<S> {
         self.inner.finish_api(api)
+    }
+
+    /// Finish the API with OpenAPI spec embedded via Extension layer
+    pub fn finish_api_with_extension(
+        self,
+        api: aide::openapi::OpenApi,
+    ) -> ::axum::Router<S>
+    where
+        S: Clone + Send + Sync + 'static,
+    {
+        let mut api_mut = api;
+        self.inner
+            .finish_api(&mut api_mut)
+            .layer(Extension(api_mut))
     }
 
     /// Convert into the underlying aide ApiRouter
