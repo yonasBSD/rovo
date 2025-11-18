@@ -2,6 +2,9 @@
 name = "rovo-macros"
 version = "0.1.0"
 edition = "2021"
+description = "Proc macros for rovo - OpenAPI documentation for axum"
+license = "GPL-3.0"
+repository = "https://github.com/a-line/rovo"
 
 [lib]
 proc-macro = true

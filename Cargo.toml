@@ -6,6 +6,12 @@ resolver = "2"
 name = "rovo"
 version = "0.1.0"
 edition = "2021"
+description = "A drop-in replacement for axum::Router with effortless OpenAPI documentation"
+license = "GPL-3.0"
+repository = "https://github.com/a-line/rovo"
+readme = "README.md"
+keywords = ["axum", "openapi", "swagger", "api", "documentation"]
+categories = ["web-programming", "web-programming::http-server"]
 
 [features]
 default = []
