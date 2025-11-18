@@ -588,4 +588,4 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
-MIT OR Apache-2.0
+GPL-3.0

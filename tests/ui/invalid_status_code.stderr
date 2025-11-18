@@ -1,21 +1,7 @@
 error: Status code 999 is out of valid range
        help: HTTP status codes must be between 100-599
        note: common codes: 200 (OK), 201 (Created), 400 (Bad Request), 404 (Not Found), 500 (Internal Error)
- --> tests/ui/invalid_status_code.rs:7:1
+ --> tests/ui/invalid_status_code.rs:8:1
   |
-7 | /// @response 999 Json<String> Invalid status code
+8 | /// @response 999 Json<String> Invalid status code
   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-warning: unused import: `aide::axum::IntoApiResponse`
- --> tests/ui/invalid_status_code.rs:1:5
-  |
-1 | use aide::axum::IntoApiResponse;
-  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  |
-  = note: `#[warn(unused_imports)]` on by default
-
-warning: unused import: `axum::response::Json`
- --> tests/ui/invalid_status_code.rs:2:5
-  |
-2 | use axum::response::Json;
-  |     ^^^^^^^^^^^^^^^^^^^^

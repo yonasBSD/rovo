@@ -8,11 +8,11 @@ fn levenshtein_distance(s1: &str, s2: &str) -> usize {
     let len2 = s2.len();
     let mut matrix = vec![vec![0; len2 + 1]; len1 + 1];
 
-    for i in 0..=len1 {
-        matrix[i][0] = i;
+    for (i, row) in matrix.iter_mut().enumerate().take(len1 + 1) {
+        row[0] = i;
     }
-    for j in 0..=len2 {
-        matrix[0][j] = j;
+    for (j, cell) in matrix[0].iter_mut().enumerate().take(len2 + 1) {
+        *cell = j;
     }
 
     for (i, c1) in s1.chars().enumerate() {
@@ -29,7 +29,15 @@ fn levenshtein_distance(s1: &str, s2: &str) -> usize {
 
 /// Find the closest matching annotation
 fn find_closest_annotation(input: &str) -> Option<&'static str> {
-    const ANNOTATIONS: &[&str] = &["response", "example", "tag", "security", "id", "hidden", "rovo-ignore"];
+    const ANNOTATIONS: &[&str] = &[
+        "response",
+        "example",
+        "tag",
+        "security",
+        "id",
+        "hidden",
+        "rovo-ignore",
+    ];
 
     let input_lower = input.to_lowercase();
     let mut best_match = None;
@@ -124,11 +132,11 @@ impl FuncItem {
         while i < tokens.len() {
             if let TokenTree::Ident(ident) = &tokens[i] {
                 // Check if we should add pub before async or fn
-                if !added_pub && (ident.to_string() == "async" || ident.to_string() == "fn") {
+                if !added_pub && (*ident == "async" || *ident == "fn") {
                     // Look back to see if pub already exists
                     let has_pub = if i > 0 {
                         if let TokenTree::Ident(prev) = &tokens[i - 1] {
-                            prev.to_string() == "pub"
+                            *prev == "pub"
                         } else {
                             false
                         }
@@ -144,7 +152,7 @@ impl FuncItem {
                 }
 
                 // Handle function name replacement
-                if ident.to_string() == "fn" && !found_fn {
+                if *ident == "fn" && !found_fn {
                     // Found 'fn', add it
                     result.push(tokens[i].clone());
                     i += 1;
@@ -211,7 +219,7 @@ pub fn parse_rovo_function(input: TokenStream) -> Result<(FuncItem, DocInfo), Pa
                 }
                 i += 1;
             }
-            TokenTree::Ident(ident) if ident.to_string() == "fn" => {
+            TokenTree::Ident(ident) if *ident == "fn" => {
                 // Next token should be the function name
                 if i + 1 < tokens.len() {
                     if let TokenTree::Ident(name) = &tokens[i + 1] {
@@ -312,12 +320,11 @@ fn parse_doc_comments(lines: &[DocLine], _func_name: &str) -> Result<DocInfo, Pa
 
             if parts.len() < 4 {
                 return Err(ParseError::with_span(
-                    format!(
-                        "Invalid @response annotation format\n\
-                         help: expected '@response <code> <type> <description>'\n\
-                         note: example '@response 200 Json<User> Successfully retrieved user'"
-                    ),
-                    span
+                    "Invalid @response annotation format\n\
+                     help: expected '@response <code> <type> <description>'\n\
+                     note: example '@response 200 Json<User> Successfully retrieved user'"
+                        .to_string(),
+                    span,
                 ));
             }
 
@@ -357,7 +364,7 @@ fn parse_doc_comments(lines: &[DocLine], _func_name: &str) -> Result<DocInfo, Pa
                          note: example '@response {} {} Successfully created resource'",
                         status_code, response_type_str
                     ),
-                    span
+                    span,
                 ));
             }
 
@@ -366,9 +373,26 @@ fn parse_doc_comments(lines: &[DocLine], _func_name: &str) -> Result<DocInfo, Pa
             let looks_like_description = {
                 // List of common words that suggest this is a description, not a type
                 let description_words = [
-                    "item", "deleted", "successfully", "created", "updated", "not",
-                    "error", "failed", "success", "the", "a", "an", "user", "data",
-                    "resource", "found", "missing", "invalid", "request", "response"
+                    "item",
+                    "deleted",
+                    "successfully",
+                    "created",
+                    "updated",
+                    "not",
+                    "error",
+                    "failed",
+                    "success",
+                    "the",
+                    "a",
+                    "an",
+                    "user",
+                    "data",
+                    "resource",
+                    "found",
+                    "missing",
+                    "invalid",
+                    "request",
+                    "response",
                 ];
 
                 let type_lower = response_type_str.to_lowercase();
@@ -378,7 +402,7 @@ fn parse_doc_comments(lines: &[DocLine], _func_name: &str) -> Result<DocInfo, Pa
                         && !response_type_str.contains('(')
                         && !response_type_str.contains(')')
                         && !response_type_str.contains("::")
-                        && description.chars().next().map_or(false, |c| c.is_lowercase()))
+                        && description.chars().next().is_some_and(|c| c.is_lowercase()))
             };
 
             if looks_like_description {
@@ -423,11 +447,9 @@ fn parse_doc_comments(lines: &[DocLine], _func_name: &str) -> Result<DocInfo, Pa
 
             if parts.len() < 3 {
                 return Err(ParseError::with_span(
-                    format!(
-                        "Invalid @example annotation format\n\
-                         help: expected '@example <code> <expression>'\n\
-                         note: example '@example 200 User::default()' or '@example 201 User {{ id: 1, name: \"Alice\".into() }}'"
-                    ),
+                    "Invalid @example annotation format\n\
+                     help: expected '@example <code> <expression>'\n\
+                     note: example '@example 200 User::default()' or '@example 201 User {{ id: 1, name: \"Alice\".into() }}'".to_string(),
                     span
                 ));
             }
@@ -496,24 +518,22 @@ fn parse_doc_comments(lines: &[DocLine], _func_name: &str) -> Result<DocInfo, Pa
 
             if parts.len() < 2 {
                 return Err(ParseError::with_span(
-                    format!(
-                        "Invalid @tag annotation format\n\
-                         help: expected '@tag <tag_name>'\n\
-                         note: example '@tag users' or '@tag authentication'"
-                    ),
-                    span
+                    "Invalid @tag annotation format\n\
+                     help: expected '@tag <tag_name>'\n\
+                     note: example '@tag users' or '@tag authentication'"
+                        .to_string(),
+                    span,
                 ));
             }
 
             let tag = parts[1].trim();
             if tag.is_empty() {
                 return Err(ParseError::with_span(
-                    format!(
-                        "Empty tag name in @tag annotation\n\
-                         help: provide a tag name after @tag\n\
-                         note: tags help organize endpoints in the OpenAPI documentation"
-                    ),
-                    span
+                    "Empty tag name in @tag annotation\n\
+                     help: provide a tag name after @tag\n\
+                     note: tags help organize endpoints in the OpenAPI documentation"
+                        .to_string(),
+                    span,
                 ));
             }
 
@@ -524,25 +544,23 @@ fn parse_doc_comments(lines: &[DocLine], _func_name: &str) -> Result<DocInfo, Pa
 
             if parts.len() < 2 {
                 return Err(ParseError::with_span(
-                    format!(
-                        "Invalid @security annotation format\n\
-                         help: expected '@security <scheme_name>'\n\
-                         note: example '@security bearer_auth' or '@security api_key'\n\
-                         note: security schemes must be defined separately in your OpenAPI spec"
-                    ),
-                    span
+                    "Invalid @security annotation format\n\
+                     help: expected '@security <scheme_name>'\n\
+                     note: example '@security bearer_auth' or '@security api_key'\n\
+                     note: security schemes must be defined separately in your OpenAPI spec"
+                        .to_string(),
+                    span,
                 ));
             }
 
             let scheme = parts[1].trim();
             if scheme.is_empty() {
                 return Err(ParseError::with_span(
-                    format!(
-                        "Empty security scheme name in @security annotation\n\
-                         help: provide a security scheme name after @security\n\
-                         note: the scheme must match a security definition in your OpenAPI spec"
-                    ),
-                    span
+                    "Empty security scheme name in @security annotation\n\
+                     help: provide a security scheme name after @security\n\
+                     note: the scheme must match a security definition in your OpenAPI spec"
+                        .to_string(),
+                    span,
                 ));
             }
 
@@ -553,25 +571,23 @@ fn parse_doc_comments(lines: &[DocLine], _func_name: &str) -> Result<DocInfo, Pa
 
             if parts.len() < 2 {
                 return Err(ParseError::with_span(
-                    format!(
-                        "Invalid @id annotation format\n\
-                         help: expected '@id <operation_id>'\n\
-                         note: example '@id getUserById' or '@id create_user'\n\
-                         note: operation IDs help identify endpoints in generated clients"
-                    ),
-                    span
+                    "Invalid @id annotation format\n\
+                     help: expected '@id <operation_id>'\n\
+                     note: example '@id getUserById' or '@id create_user'\n\
+                     note: operation IDs help identify endpoints in generated clients"
+                        .to_string(),
+                    span,
                 ));
             }
 
             let id = parts[1].trim();
             if id.is_empty() {
                 return Err(ParseError::with_span(
-                    format!(
-                        "Empty operation ID in @id annotation\n\
-                         help: provide an operation ID after @id\n\
-                         note: operation IDs must be unique across all endpoints"
-                    ),
-                    span
+                    "Empty operation ID in @id annotation\n\
+                     help: provide an operation ID after @id\n\
+                     note: operation IDs must be unique across all endpoints"
+                        .to_string(),
+                    span,
                 ));
             }
 

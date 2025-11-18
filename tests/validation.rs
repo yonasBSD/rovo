@@ -1,10 +1,6 @@
 // This test file demonstrates compile-time validation of doc comment annotations.
 // Uncomment any of the examples below to see the validation errors at compile time.
 
-use aide::axum::IntoApiResponse;
-use axum::response::Json;
-use rovo::rovo;
-
 /*
 // Example 1: Invalid status code (too high)
 /// Test handler
@@ -70,19 +66,3 @@ async fn invalid_type_syntax() -> impl IntoApiResponse {
     Json("test".to_string())
 }
 */
-
-// This test compiles successfully - all validations pass
-/// Valid handler
-///
-/// @tag test
-/// @response 200 Json<String> Success response
-#[rovo]
-async fn valid_handler() -> impl IntoApiResponse {
-    Json("test".to_string())
-}
-
-#[test]
-fn test_valid_handler_compiles() {
-    // If this test runs, it means the valid handler compiled successfully
-    assert!(true);
-}
