@@ -5,11 +5,3 @@ error: Status code 999 is out of valid range
   |
 8 | /// @response 999 Json<String> Invalid status code
   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-warning: unused import: `axum::response::Json`
- --> tests/ui/invalid_status_code.rs:3:5
-  |
-3 | use axum::response::Json;
-  |     ^^^^^^^^^^^^^^^^^^^^
-  |
-  = note: `#[warn(unused_imports)]` on by default
