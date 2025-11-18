@@ -67,7 +67,7 @@ jobs:
         uses: taiki-e/install-action@nextest
 
       - name: Run tests
-        run: cargo nextest run --all
+        run: cargo nextest run --all-features --all
 
       - name: Run doc tests
         # Skip doc tests on nightly due to ord_subset compilation issue
