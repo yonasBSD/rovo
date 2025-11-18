@@ -55,8 +55,8 @@ fn test_macro_compiles() {
     // This test just ensures the macro compiles correctly
     let _state = AppState {};
 
-    // The macro should have generated a function called get_todo_docs
+    // The macro should have generated a module with handler and docs
     // that we can use with aide's get_with
     let _router: ApiRouter<AppState> = ApiRouter::new()
-        .api_route("/todo/{id}", get_with(get_todo, get_todo_docs));
+        .api_route("/todo/{id}", get_with(get_todo::handler, get_todo::docs));
 }

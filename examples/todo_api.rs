@@ -153,13 +153,11 @@ async fn delete_todo(
 
 pub fn todo_routes(state: AppState) -> Router<AppState> {
     Router::new()
-        .route("/todos", rovo::get!(list_todos).post_with(create_todo, create_todo_docs))
-        .route(
-            "/todos/{id}",
-            rovo::get!(get_todo)
-                .patch_with(update_todo, update_todo_docs)
-                .delete_with(delete_todo, delete_todo_docs),
-        )
+        .route("/todos", rovo::get!(list_todos))
+        .route("/todos", rovo::post!(create_todo))
+        .route("/todos/{id}", rovo::get!(get_todo))
+        .route("/todos/{id}", rovo::patch!(update_todo))
+        .route("/todos/{id}", rovo::delete!(delete_todo))
         .with_state(state)
 }
 
@@ -216,7 +214,10 @@ async fn main() {
         .with_state(state);
 
     let docs = aide::axum::ApiRouter::new()
-        .route("/", axum::routing::get(|| async { axum::response::Redirect::permanent("/docs") }))
+        .route(
+            "/",
+            axum::routing::get(|| async { axum::response::Redirect::permanent("/docs") }),
+        )
         .route("/docs", Swagger::new("/api.json").axum_route())
         .route("/api.json", axum::routing::get(serve_api))
         .merge(app);
@@ -230,11 +231,7 @@ async fn main() {
     info!("Documentation: http://127.0.0.1:3000/docs");
     info!("OpenAPI spec: http://127.0.0.1:3000/api.json");
 
-    let final_app = docs
-        .finish_api(&mut api)
-        .layer(Extension(api));
+    let final_app = docs.finish_api(&mut api).layer(Extension(api));
 
-    axum::serve(listener, final_app)
-        .await
-        .unwrap();
+    axum::serve(listener, final_app).await.unwrap();
 }

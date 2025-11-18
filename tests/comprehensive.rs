@@ -75,16 +75,16 @@ async fn multi_response(State(_state): State<AppState>) -> impl IntoApiResponse 
 
 #[test]
 fn test_macro_generates_docs_function() {
-    // The macro should generate a {function_name}_docs function
+    // The macro should generate a module with handler and docs
     let state = AppState {
         value: "test".to_string(),
     };
 
-    // This should compile - the _docs functions exist
+    // This should compile - the modules with handler and docs exist
     let _router: ApiRouter<AppState> = ApiRouter::new()
-        .api_route("/items/{id}", get_with(get_item, get_item_docs))
-        .api_route("/simple", get_with(simple_handler, simple_handler_docs))
-        .api_route("/multi", get_with(multi_response, multi_response_docs))
+        .api_route("/items/{id}", get_with(get_item::handler, get_item::docs))
+        .api_route("/simple", get_with(simple_handler::handler, simple_handler::docs))
+        .api_route("/multi", get_with(multi_response::handler, multi_response::docs))
         .with_state(state);
 }
 
@@ -98,7 +98,7 @@ fn test_docs_function_callable() {
     let transform = TransformOperation::new(&mut operation);
 
     // The docs function should be callable and return a TransformOperation
-    let _result = get_item_docs(transform);
+    let _result = get_item::docs(transform);
 }
 
 #[test]
@@ -109,9 +109,9 @@ fn test_multiple_handlers_compile() {
     };
 
     let _router: ApiRouter<AppState> = ApiRouter::new()
-        .api_route("/a", get_with(simple_handler, simple_handler_docs))
-        .api_route("/b", get_with(multi_response, multi_response_docs))
-        .api_route("/c/{id}", get_with(get_item, get_item_docs))
+        .api_route("/a", get_with(simple_handler::handler, simple_handler::docs))
+        .api_route("/b", get_with(multi_response::handler, multi_response::docs))
+        .api_route("/c/{id}", get_with(get_item::handler, get_item::docs))
         .with_state(state);
 }
 
@@ -124,6 +124,6 @@ fn test_handler_with_path_params() {
 
     let _router: ApiRouter<AppState> =
         ApiRouter::new()
-            .api_route("/items/{id}", get_with(get_item, get_item_docs))
+            .api_route("/items/{id}", get_with(get_item::handler, get_item::docs))
             .with_state(state);
 }

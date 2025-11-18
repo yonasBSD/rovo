@@ -3,6 +3,7 @@ pub use rovo_macros::rovo;
 // Re-export aide for convenience
 pub use aide;
 
+
 use aide::axum::ApiRouter as AideApiRouter;
 
 /// A drop-in replacement for axum::Router that adds OpenAPI documentation support.
@@ -82,65 +83,42 @@ where
     }
 }
 
-/// Helper macro to create a GET route with auto-generated docs.
+/// Routing helper macros that automatically include docs for `#[rovo]` decorated handlers.
 ///
-/// Use this for handlers decorated with `#[rovo]`. The macro automatically
-/// uses the generated `{handler_name}_docs` function.
-///
-/// For handlers without `#[rovo]`, use `rovo::routing::get()` instead.
-///
-/// # Example
-/// ```ignore
-/// #[rovo]
-/// async fn my_handler() -> impl IntoApiResponse { /* ... */ }
-///
-/// Router::new().route("/path", get!(my_handler))
-/// ```
+/// These macros work with the module structure that `#[rovo]` generates.
 #[macro_export]
 macro_rules! get {
     ($handler:ident) => {
-        $crate::aide::axum::routing::get_with($handler, paste::paste! { [<$handler _docs>] })
+        $crate::aide::axum::routing::get_with($handler::handler, $handler::docs)
     };
 }
 
-/// Helper macro to create a POST route with auto-generated docs.
 #[macro_export]
 macro_rules! post {
     ($handler:ident) => {
-        $crate::aide::axum::routing::post_with($handler, paste::paste! { [<$handler _docs>] })
+        $crate::aide::axum::routing::post_with($handler::handler, $handler::docs)
     };
 }
 
-/// Helper macro to create a PATCH route with auto-generated docs.
 #[macro_export]
 macro_rules! patch {
     ($handler:ident) => {
-        $crate::aide::axum::routing::patch_with($handler, paste::paste! { [<$handler _docs>] })
+        $crate::aide::axum::routing::patch_with($handler::handler, $handler::docs)
     };
 }
 
-/// Helper macro to create a DELETE route with auto-generated docs.
 #[macro_export]
 macro_rules! delete {
     ($handler:ident) => {
-        $crate::aide::axum::routing::delete_with($handler, paste::paste! { [<$handler _docs>] })
+        $crate::aide::axum::routing::delete_with($handler::handler, $handler::docs)
     };
 }
 
-/// Helper macro to create a PUT route with auto-generated docs.
 #[macro_export]
 macro_rules! put {
     ($handler:ident) => {
-        $crate::aide::axum::routing::put_with($handler, paste::paste! { [<$handler _docs>] })
+        $crate::aide::axum::routing::put_with($handler::handler, $handler::docs)
     };
-}
-
-/// Routing helpers for handlers without `#[rovo]` decoration.
-///
-/// These are re-exports of aide's plain routing functions for handlers
-/// that don't need custom documentation.
-pub mod routing {
-    pub use aide::axum::routing::{delete, get, head, options, patch, post, put, trace};
 }
 
 pub mod axum {

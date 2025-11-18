@@ -50,5 +50,5 @@ fn test_with_example() {
     let _state = AppState {};
 
     let _router: ApiRouter<AppState> =
-        ApiRouter::new().api_route("/users/{id}", get_with(get_user, get_user_docs));
+        ApiRouter::new().api_route("/users/{id}", get_with(get_user::handler, get_user::docs));
 }

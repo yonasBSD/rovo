@@ -27,7 +27,6 @@ pub fn rovo(_attr: TokenStream, item: TokenStream) -> TokenStream {
     match parse_rovo_function(input.into()) {
         Ok((func_item, doc_info)) => {
             let func_name = &func_item.name;
-            let docs_func_name = quote::format_ident!("{}_docs", func_name);
 
             let title = doc_info.title.as_deref().unwrap_or("");
             let description = doc_info.description.as_deref().unwrap_or("");
@@ -62,13 +61,31 @@ pub fn rovo(_attr: TokenStream, item: TokenStream) -> TokenStream {
                 }).collect()
             };
 
-            let output = quote! {
-                #func_item
+            // Generate an internal implementation name
+            let impl_name = quote::format_ident!("__{}_impl", func_name);
 
-                pub fn #docs_func_name(op: aide::transform::TransformOperation) -> aide::transform::TransformOperation {
-                    op.summary(#title)
-                        .description(#description)
-                        #(#response_code_setters)*
+            // Get the renamed function tokens
+            let impl_func = func_item.with_renamed(&impl_name);
+
+            let output = quote! {
+                // Internal implementation with renamed function
+                #[allow(non_snake_case, private_interfaces)]
+                #impl_func
+
+                // Create a module with the original function name that contains handler and docs
+                #[allow(non_snake_case)]
+                pub mod #func_name {
+                    use super::*;
+
+                    // Re-export the implementation as 'handler'
+                    pub use super::#impl_name as handler;
+
+                    // Generate documentation function
+                    pub fn docs(op: aide::transform::TransformOperation) -> aide::transform::TransformOperation {
+                        op.summary(#title)
+                            .description(#description)
+                            #(#response_code_setters)*
+                    }
                 }
             };
 

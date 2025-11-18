@@ -48,6 +48,62 @@ pub struct FuncItem {
     pub tokens: TokenStream,
 }
 
+impl FuncItem {
+    /// Generate a renamed version of this function with pub visibility
+    pub fn with_renamed(&self, new_name: &Ident) -> TokenStream {
+        let tokens: Vec<TokenTree> = self.tokens.clone().into_iter().collect();
+        let mut result = Vec::new();
+        let mut i = 0;
+        let mut found_fn = false;
+        let mut added_pub = false;
+
+        while i < tokens.len() {
+            if let TokenTree::Ident(ident) = &tokens[i] {
+                // Check if we should add pub before async or fn
+                if !added_pub && (ident.to_string() == "async" || ident.to_string() == "fn") {
+                    // Look back to see if pub already exists
+                    let has_pub = if i > 0 {
+                        if let TokenTree::Ident(prev) = &tokens[i - 1] {
+                            prev.to_string() == "pub"
+                        } else {
+                            false
+                        }
+                    } else {
+                        false
+                    };
+
+                    if !has_pub {
+                        let pub_ident = Ident::new("pub", ident.span());
+                        result.push(TokenTree::Ident(pub_ident));
+                    }
+                    added_pub = true;
+                }
+
+                // Handle function name replacement
+                if ident.to_string() == "fn" && !found_fn {
+                    // Found 'fn', add it
+                    result.push(tokens[i].clone());
+                    i += 1;
+                    found_fn = true;
+                    // Skip the old name and add the new name
+                    if i < tokens.len() {
+                        if let TokenTree::Ident(_) = &tokens[i] {
+                            result.push(TokenTree::Ident(new_name.clone()));
+                            i += 1;
+                            continue;
+                        }
+                    }
+                    continue;
+                }
+            }
+            result.push(tokens[i].clone());
+            i += 1;
+        }
+
+        result.into_iter().collect()
+    }
+}
+
 impl ToTokens for FuncItem {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         self.tokens.to_tokens(tokens);
