@@ -153,43 +153,24 @@ async fn delete_todo(
 pub fn todo_routes(state: AppState) -> ApiRouter {
     aide::axum::ApiRouter::new()
         .api_route("/todos", get_with(list_todos, list_todos_docs))
-        .api_route("/todos", aide::axum::routing::post_with(create_todo, create_todo_docs))
+        .api_route(
+            "/todos",
+            aide::axum::routing::post_with(create_todo, create_todo_docs),
+        )
         .api_route("/todos/:id", get_with(get_todo, get_todo_docs))
-        .api_route("/todos/:id", aide::axum::routing::patch_with(update_todo, update_todo_docs))
-        .api_route("/todos/:id", aide::axum::routing::delete_with(delete_todo, delete_todo_docs))
+        .api_route(
+            "/todos/:id",
+            aide::axum::routing::patch_with(update_todo, update_todo_docs),
+        )
+        .api_route(
+            "/todos/:id",
+            aide::axum::routing::delete_with(delete_todo, delete_todo_docs),
+        )
         .with_state(state)
 }
 
 async fn swagger_ui() -> axum::response::Html<String> {
-    axum::response::Html(format!(
-        r#"<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Todo API - Swagger UI</title>
-    <link rel="stylesheet" type="text/css" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css" />
-</head>
-<body>
-    <div id="swagger-ui"></div>
-    <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
-    <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-standalone-preset.js"></script>
-    <script>
-        window.onload = function() {{
-            window.ui = SwaggerUIBundle({{
-                url: '/openapi.json',
-                dom_id: '#swagger-ui',
-                presets: [
-                    SwaggerUIBundle.presets.apis,
-                    SwaggerUIStandalonePreset
-                ],
-                layout: "BaseLayout"
-            }});
-        }};
-    </script>
-</body>
-</html>"#
-    ))
+    axum::response::Html(include_str!("./swagger.html").to_string())
 }
 
 #[tokio::main]
@@ -238,10 +219,13 @@ async fn main() {
     // Build the router
     let app = todo_routes(state.clone())
         .finish_api(&mut api)
-        .route("/openapi.json", axum::routing::get({
-            let api = api.clone();
-            move || async move { axum::Json(api.clone()) }
-        }))
+        .route(
+            "/openapi.json",
+            axum::routing::get({
+                let api = api.clone();
+                move || async move { axum::Json(api.clone()) }
+            }),
+        )
         .route("/", axum::routing::get(swagger_ui))
         .into_make_service();
 
