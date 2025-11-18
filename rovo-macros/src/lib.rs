@@ -32,34 +32,40 @@ pub fn rovo(_attr: TokenStream, item: TokenStream) -> TokenStream {
             let title = doc_info.title.as_deref().unwrap_or("");
             let description = doc_info.description.as_deref().unwrap_or("");
 
-            let response_code_setters = doc_info.responses.iter().map(|resp| {
-                let code = resp.status_code;
-                let response_type = &resp.response_type;
-                let desc = &resp.description;
+            // Generate response setters if we have doc comments
+            let response_code_setters = if doc_info.responses.is_empty() {
+                // No responses specified - generate a minimal docs function
+                vec![]
+            } else {
+                doc_info.responses.iter().map(|resp| {
+                    let code = resp.status_code;
+                    let response_type = &resp.response_type;
+                    let desc = &resp.description;
 
-                // Check if there's an explicit example for this status code
-                if let Some(example) = doc_info.examples.iter().find(|e| e.status_code == code) {
-                    let example_code = &example.example_code;
-                    quote! {
-                        .response_with::<#code, #response_type, _>(|res| {
-                            res.description(#desc)
-                                .example(#example_code)
-                        })
+                    // Check if there's an explicit example for this status code
+                    if let Some(example) = doc_info.examples.iter().find(|e| e.status_code == code) {
+                        let example_code = &example.example_code;
+                        quote! {
+                            .response_with::<#code, #response_type, _>(|res| {
+                                res.description(#desc)
+                                    .example(#example_code)
+                            })
+                        }
+                    } else {
+                        // No explicit example, just add the description
+                        quote! {
+                            .response_with::<#code, #response_type, _>(|res| {
+                                res.description(#desc)
+                            })
+                        }
                     }
-                } else {
-                    // No explicit example, just add the description
-                    quote! {
-                        .response_with::<#code, #response_type, _>(|res| {
-                            res.description(#desc)
-                        })
-                    }
-                }
-            });
+                }).collect()
+            };
 
             let output = quote! {
                 #func_item
 
-                fn #docs_func_name(op: aide::transform::TransformOperation) -> aide::transform::TransformOperation {
+                pub fn #docs_func_name(op: aide::transform::TransformOperation) -> aide::transform::TransformOperation {
                     op.summary(#title)
                         .description(#description)
                         #(#response_code_setters)*

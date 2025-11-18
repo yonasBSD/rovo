@@ -83,13 +83,23 @@ where
 }
 
 /// Helper macro to create a GET route with auto-generated docs.
-/// Use this for handlers decorated with `#[rovo]`.
 ///
-/// For handlers without `#[rovo]`, use `aide::axum::routing::get()` instead.
+/// Use this for handlers decorated with `#[rovo]`. The macro automatically
+/// uses the generated `{handler_name}_docs` function.
+///
+/// For handlers without `#[rovo]`, use `rovo::routing::get()` instead.
+///
+/// # Example
+/// ```ignore
+/// #[rovo]
+/// async fn my_handler() -> impl IntoApiResponse { /* ... */ }
+///
+/// Router::new().route("/path", get!(my_handler))
+/// ```
 #[macro_export]
 macro_rules! get {
     ($handler:ident) => {
-        aide::axum::routing::get_with($handler, paste::paste! { [<$handler _docs>] })
+        $crate::aide::axum::routing::get_with($handler, paste::paste! { [<$handler _docs>] })
     };
 }
 
@@ -97,7 +107,7 @@ macro_rules! get {
 #[macro_export]
 macro_rules! post {
     ($handler:ident) => {
-        aide::axum::routing::post_with($handler, paste::paste! { [<$handler _docs>] })
+        $crate::aide::axum::routing::post_with($handler, paste::paste! { [<$handler _docs>] })
     };
 }
 
@@ -105,7 +115,7 @@ macro_rules! post {
 #[macro_export]
 macro_rules! patch {
     ($handler:ident) => {
-        aide::axum::routing::patch_with($handler, paste::paste! { [<$handler _docs>] })
+        $crate::aide::axum::routing::patch_with($handler, paste::paste! { [<$handler _docs>] })
     };
 }
 
@@ -113,7 +123,7 @@ macro_rules! patch {
 #[macro_export]
 macro_rules! delete {
     ($handler:ident) => {
-        aide::axum::routing::delete_with($handler, paste::paste! { [<$handler _docs>] })
+        $crate::aide::axum::routing::delete_with($handler, paste::paste! { [<$handler _docs>] })
     };
 }
 
@@ -121,8 +131,16 @@ macro_rules! delete {
 #[macro_export]
 macro_rules! put {
     ($handler:ident) => {
-        aide::axum::routing::put_with($handler, paste::paste! { [<$handler _docs>] })
+        $crate::aide::axum::routing::put_with($handler, paste::paste! { [<$handler _docs>] })
     };
+}
+
+/// Routing helpers for handlers without `#[rovo]` decoration.
+///
+/// These are re-exports of aide's plain routing functions for handlers
+/// that don't need custom documentation.
+pub mod routing {
+    pub use aide::axum::routing::{delete, get, head, options, patch, post, put, trace};
 }
 
 pub mod axum {

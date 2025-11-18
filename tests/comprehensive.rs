@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 #[derive(Clone)]
+#[allow(dead_code)]
 struct AppState {
     value: String,
 }

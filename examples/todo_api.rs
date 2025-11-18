@@ -1,8 +1,4 @@
-use aide::{
-    axum::{routing::get_with, IntoApiResponse},
-    openapi::OpenApi,
-    swagger::Swagger,
-};
+use aide::{axum::IntoApiResponse, openapi::OpenApi, swagger::Swagger};
 use axum::{
     extract::{Path, State},
     http::StatusCode,
@@ -157,13 +153,10 @@ async fn delete_todo(
 
 pub fn todo_routes(state: AppState) -> Router<AppState> {
     Router::new()
-        .route(
-            "/todos",
-            get_with(list_todos, list_todos_docs).post_with(create_todo, create_todo_docs),
-        )
+        .route("/todos", rovo::get!(list_todos).post_with(create_todo, create_todo_docs))
         .route(
             "/todos/{id}",
-            get_with(get_todo, get_todo_docs)
+            rovo::get!(get_todo)
                 .patch_with(update_todo, update_todo_docs)
                 .delete_with(delete_todo, delete_todo_docs),
         )
