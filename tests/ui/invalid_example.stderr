@@ -1,0 +1,53 @@
+error: expected one of `!`, `)`, `,`, `.`, `::`, `?`, `{`, or an operator, found `is`
+ --> tests/ui/invalid_example.rs:9:1
+  |
+9 | #[rovo]
+  | ^^^^^^^- help: missing `,`
+  | |
+  | expected one of 8 possible tokens
+  |
+  = note: this error originates in the attribute macro `rovo` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: unexpected `valid` after identifier
+ --> tests/ui/invalid_example.rs:9:1
+  |
+9 | #[rovo]
+  | ^^^^^^^
+  |
+  = note: this error originates in the attribute macro `rovo` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: use `!` to perform logical negation or bitwise not
+  |
+9 - #[rovo]
+9 + !
+  |
+
+error: expected one of `!`, `)`, `,`, `.`, `::`, `?`, `{`, or an operator, found `not`
+ --> tests/ui/invalid_example.rs:9:1
+  |
+9 | #[rovo]
+  | ^^^^^^^ expected one of 8 possible tokens
+  |
+  = note: this error originates in the attribute macro `rovo` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: there is a keyword `as` with a similar name
+  |
+9 - #[rovo]
+9 + as
+  |
+
+error: expected one of `!`, `)`, `,`, `.`, `::`, `?`, `{`, or an operator, found `Rust`
+ --> tests/ui/invalid_example.rs:9:1
+  |
+9 | #[rovo]
+  | ^^^^^^^- help: missing `,`
+  | |
+  | expected one of 8 possible tokens
+  |
+  = note: this error originates in the attribute macro `rovo` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: expected one of `!`, `)`, `,`, `.`, `::`, `?`, `{`, or an operator, found `code`
+ --> tests/ui/invalid_example.rs:9:1
+  |
+9 | #[rovo]
+  | ^^^^^^^ expected one of 8 possible tokens
+  |
+  = note: this error originates in the attribute macro `rovo` (in Nightly builds, run with -Z macro-backtrace for more info)

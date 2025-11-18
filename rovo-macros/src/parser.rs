@@ -422,44 +422,68 @@ fn parse_doc_comments(lines: &[DocLine], _func_name: &str) -> Result<DocInfo, Pa
             let parts: Vec<&str> = trimmed.splitn(3, ' ').collect();
 
             if parts.len() < 3 {
-                return Err(ParseError::new(format!(
-                    "Invalid @example annotation on line {}: Expected format '@example <code> <expression>'",
-                    line_num + 1
-                )));
+                return Err(ParseError::with_span(
+                    format!(
+                        "Invalid @example annotation format\n\
+                         help: expected '@example <code> <expression>'\n\
+                         note: example '@example 200 User::default()' or '@example 201 User {{ id: 1, name: \"Alice\".into() }}'"
+                    ),
+                    span
+                ));
             }
 
             let status_code = parts[1]
                 .parse::<u16>()
-                .map_err(|_| ParseError::new(format!(
-                    "Invalid status code '{}' on line {}: Must be a number between 100-599",
-                    parts[1], line_num + 1
-                )))?;
+                .map_err(|_| ParseError::with_span(
+                    format!(
+                        "Invalid status code '{}'\n\
+                         help: status code must be a number between 100-599\n\
+                         note: common codes: 200 (OK), 201 (Created), 400 (Bad Request), 404 (Not Found), 500 (Internal Error)",
+                        parts[1]
+                    ),
+                    span
+                ))?;
 
             // Validate status code is in valid HTTP range
             if !(100..=599).contains(&status_code) {
-                return Err(ParseError::new(format!(
-                    "Invalid status code {} on line {}: HTTP status codes must be between 100-599",
-                    status_code, line_num + 1
-                )));
+                return Err(ParseError::with_span(
+                    format!(
+                        "Status code {} is out of valid range\n\
+                         help: HTTP status codes must be between 100-599\n\
+                         note: common codes: 200 (OK), 201 (Created), 400 (Bad Request), 404 (Not Found), 500 (Internal Error)",
+                        status_code
+                    ),
+                    span
+                ));
             }
 
             let example_code_str = parts[2];
 
             if example_code_str.trim().is_empty() {
-                return Err(ParseError::new(format!(
-                    "Empty example expression on line {}: Expression is required",
-                    line_num + 1
-                )));
+                return Err(ParseError::with_span(
+                    format!(
+                        "Empty example expression in @example annotation\n\
+                         help: provide a valid Rust expression after the status code\n\
+                         note: example '@example {} User::default()' or '@example {} User {{ id: 1, name: \"Alice\".into() }}'",
+                        status_code, status_code
+                    ),
+                    span
+                ));
             }
 
             // Parse the example code string into a TokenStream
             let example_code: TokenStream = example_code_str
                 .parse()
                 .map_err(|_| {
-                    ParseError::new(format!(
-                        "Invalid example expression '{}' on line {}: Must be valid Rust expression",
-                        example_code_str, line_num + 1
-                    ))
+                    ParseError::with_span(
+                        format!(
+                            "Invalid example expression '{}'\n\
+                             help: expression must be valid Rust syntax\n\
+                             note: examples: 'User::default()', 'User {{ id: 1, name: \"Alice\".into() }}', 'vec![1, 2, 3]'",
+                            example_code_str
+                        ),
+                        span
+                    )
                 })?;
 
             doc_info.examples.push(ExampleInfo {
@@ -471,18 +495,26 @@ fn parse_doc_comments(lines: &[DocLine], _func_name: &str) -> Result<DocInfo, Pa
             let parts: Vec<&str> = trimmed.splitn(2, ' ').collect();
 
             if parts.len() < 2 {
-                return Err(ParseError::new(format!(
-                    "Invalid @tag annotation on line {}: Expected format '@tag <tag_name>'",
-                    line_num + 1
-                )));
+                return Err(ParseError::with_span(
+                    format!(
+                        "Invalid @tag annotation format\n\
+                         help: expected '@tag <tag_name>'\n\
+                         note: example '@tag users' or '@tag authentication'"
+                    ),
+                    span
+                ));
             }
 
             let tag = parts[1].trim();
             if tag.is_empty() {
-                return Err(ParseError::new(format!(
-                    "Empty tag name on line {}: Tag name cannot be empty",
-                    line_num + 1
-                )));
+                return Err(ParseError::with_span(
+                    format!(
+                        "Empty tag name in @tag annotation\n\
+                         help: provide a tag name after @tag\n\
+                         note: tags help organize endpoints in the OpenAPI documentation"
+                    ),
+                    span
+                ));
             }
 
             doc_info.tags.push(tag.to_string());
@@ -491,18 +523,27 @@ fn parse_doc_comments(lines: &[DocLine], _func_name: &str) -> Result<DocInfo, Pa
             let parts: Vec<&str> = trimmed.splitn(2, ' ').collect();
 
             if parts.len() < 2 {
-                return Err(ParseError::new(format!(
-                    "Invalid @security annotation on line {}: Expected format '@security <scheme_name>'",
-                    line_num + 1
-                )));
+                return Err(ParseError::with_span(
+                    format!(
+                        "Invalid @security annotation format\n\
+                         help: expected '@security <scheme_name>'\n\
+                         note: example '@security bearer_auth' or '@security api_key'\n\
+                         note: security schemes must be defined separately in your OpenAPI spec"
+                    ),
+                    span
+                ));
             }
 
             let scheme = parts[1].trim();
             if scheme.is_empty() {
-                return Err(ParseError::new(format!(
-                    "Empty security scheme name on line {}: Scheme name cannot be empty",
-                    line_num + 1
-                )));
+                return Err(ParseError::with_span(
+                    format!(
+                        "Empty security scheme name in @security annotation\n\
+                         help: provide a security scheme name after @security\n\
+                         note: the scheme must match a security definition in your OpenAPI spec"
+                    ),
+                    span
+                ));
             }
 
             doc_info.security_requirements.push(scheme.to_string());
@@ -511,26 +552,40 @@ fn parse_doc_comments(lines: &[DocLine], _func_name: &str) -> Result<DocInfo, Pa
             let parts: Vec<&str> = trimmed.splitn(2, ' ').collect();
 
             if parts.len() < 2 {
-                return Err(ParseError::new(format!(
-                    "Invalid @id annotation on line {}: Expected format '@id <operation_id>'",
-                    line_num + 1
-                )));
+                return Err(ParseError::with_span(
+                    format!(
+                        "Invalid @id annotation format\n\
+                         help: expected '@id <operation_id>'\n\
+                         note: example '@id getUserById' or '@id create_user'\n\
+                         note: operation IDs help identify endpoints in generated clients"
+                    ),
+                    span
+                ));
             }
 
             let id = parts[1].trim();
             if id.is_empty() {
-                return Err(ParseError::new(format!(
-                    "Empty operation ID on line {}: Operation ID cannot be empty",
-                    line_num + 1
-                )));
+                return Err(ParseError::with_span(
+                    format!(
+                        "Empty operation ID in @id annotation\n\
+                         help: provide an operation ID after @id\n\
+                         note: operation IDs must be unique across all endpoints"
+                    ),
+                    span
+                ));
             }
 
             // Validate that operation ID is a valid identifier (alphanumeric + underscores)
             if !id.chars().all(|c| c.is_alphanumeric() || c == '_') {
-                return Err(ParseError::new(format!(
-                    "Invalid operation ID '{}' on line {}: Must contain only alphanumeric characters and underscores",
-                    id, line_num + 1
-                )));
+                return Err(ParseError::with_span(
+                    format!(
+                        "Invalid operation ID '{}'\n\
+                         help: operation IDs must contain only alphanumeric characters and underscores\n\
+                         note: valid examples: 'getUserById', 'create_user', 'deleteItem123'",
+                        id
+                    ),
+                    span
+                ));
             }
 
             doc_info.operation_id = Some(id.to_string());
