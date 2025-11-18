@@ -2,13 +2,19 @@
 members = ["rovo-macros"]
 resolver = "2"
 
-[package]
-name = "rovo"
+[workspace.package]
 version = "0.1.0"
 edition = "2021"
-description = "A drop-in replacement for axum::Router with effortless OpenAPI documentation"
 license = "GPL-3.0"
 repository = "https://github.com/a-line/rovo"
+
+[package]
+name = "rovo"
+version.workspace = true
+edition.workspace = true
+description = "A drop-in replacement for axum::Router with effortless OpenAPI documentation"
+license.workspace = true
+repository.workspace = true
 readme = "README.md"
 keywords = ["axum", "openapi", "swagger", "api", "documentation"]
 categories = ["web-programming", "web-programming::http-server"]
