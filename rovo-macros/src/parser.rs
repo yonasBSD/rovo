@@ -17,7 +17,7 @@ fn levenshtein_distance(s1: &str, s2: &str) -> usize {
 
     for (i, c1) in s1.chars().enumerate() {
         for (j, c2) in s2.chars().enumerate() {
-            let cost = if c1 == c2 { 0 } else { 1 };
+            let cost = usize::from(c1 != c2);
             matrix[i + 1][j + 1] = (matrix[i][j + 1] + 1)
                 .min(matrix[i + 1][j] + 1)
                 .min(matrix[i][j] + cost);
@@ -76,7 +76,7 @@ impl ParseError {
         }
     }
 
-    pub fn span(&self) -> Option<Span> {
+    pub const fn span(&self) -> Option<Span> {
         self.span
     }
 }
@@ -310,7 +310,7 @@ fn parse_doc_comments(lines: &[DocLine], _func_name: &str) -> Result<DocInfo, Pa
     let mut in_description = false;
     let mut title_set = false;
 
-    for doc_line in lines.iter() {
+    for doc_line in lines {
         let trimmed = doc_line.text.trim();
         let span = doc_line.span;
 
@@ -344,10 +344,9 @@ fn parse_doc_comments(lines: &[DocLine], _func_name: &str) -> Result<DocInfo, Pa
             if !(100..=599).contains(&status_code) {
                 return Err(ParseError::with_span(
                     format!(
-                        "Status code {} is out of valid range\n\
+                        "Status code {status_code} is out of valid range\n\
                          help: HTTP status codes must be between 100-599\n\
-                         note: common codes: 200 (OK), 201 (Created), 400 (Bad Request), 404 (Not Found), 500 (Internal Error)",
-                        status_code
+                         note: common codes: 200 (OK), 201 (Created), 400 (Bad Request), 404 (Not Found), 500 (Internal Error)"
                     ),
                     span
                 ));
@@ -361,8 +360,7 @@ fn parse_doc_comments(lines: &[DocLine], _func_name: &str) -> Result<DocInfo, Pa
                     format!(
                         "Missing description for @response\n\
                          help: add a description after the response type\n\
-                         note: example '@response {} {} Successfully created resource'",
-                        status_code, response_type_str
+                         note: example '@response {status_code} {response_type_str} Successfully created resource'"
                     ),
                     span,
                 ));
@@ -402,19 +400,22 @@ fn parse_doc_comments(lines: &[DocLine], _func_name: &str) -> Result<DocInfo, Pa
                         && !response_type_str.contains('(')
                         && !response_type_str.contains(')')
                         && !response_type_str.contains("::")
-                        && description.chars().next().is_some_and(|c| c.is_lowercase()))
+                        && description.chars().next().is_some_and(char::is_lowercase))
             };
 
             if looks_like_description {
+                let rest = trimmed
+                    .trim_start_matches("@response")
+                    .trim_start_matches(char::is_whitespace)
+                    .trim_start_matches(parts[1])
+                    .trim();
                 return Err(ParseError::with_span(
                     format!(
                         "Missing response type in @response annotation\n\
                          help: format is '@response <code> <type> <description>'\n\
                          note: did you forget to add the type? For example:\n\
-                         note:   '@response {} () {}'\n\
-                         note: common types: () for empty responses, Json<T> for JSON, (StatusCode, Json<T>) for custom status",
-                        status_code,
-                        trimmed.trim_start_matches("@response").trim_start_matches(char::is_whitespace).trim_start_matches(parts[1]).trim()
+                         note:   '@response {status_code} () {rest}'\n\
+                         note: common types: () for empty responses, Json<T> for JSON, (StatusCode, Json<T>) for custom status"
                     ),
                     span
                 ));
@@ -426,11 +427,10 @@ fn parse_doc_comments(lines: &[DocLine], _func_name: &str) -> Result<DocInfo, Pa
                 .map_err(|_| {
                     ParseError::with_span(
                         format!(
-                            "Invalid response type '{}'\n\
+                            "Invalid response type '{response_type_str}'\n\
                              help: response type must be valid Rust syntax\n\
                              note: common types: Json<T>, (), (StatusCode, Json<T>)\n\
-                             note: if this is a description, you may have forgotten the type parameter",
-                            response_type_str
+                             note: if this is a description, you may have forgotten the type parameter"
                         ),
                         span
                     )
@@ -470,10 +470,9 @@ fn parse_doc_comments(lines: &[DocLine], _func_name: &str) -> Result<DocInfo, Pa
             if !(100..=599).contains(&status_code) {
                 return Err(ParseError::with_span(
                     format!(
-                        "Status code {} is out of valid range\n\
+                        "Status code {status_code} is out of valid range\n\
                          help: HTTP status codes must be between 100-599\n\
-                         note: common codes: 200 (OK), 201 (Created), 400 (Bad Request), 404 (Not Found), 500 (Internal Error)",
-                        status_code
+                         note: common codes: 200 (OK), 201 (Created), 400 (Bad Request), 404 (Not Found), 500 (Internal Error)"
                     ),
                     span
                 ));
@@ -486,8 +485,7 @@ fn parse_doc_comments(lines: &[DocLine], _func_name: &str) -> Result<DocInfo, Pa
                     format!(
                         "Empty example expression in @example annotation\n\
                          help: provide a valid Rust expression after the status code\n\
-                         note: example '@example {} User::default()' or '@example {} User {{ id: 1, name: \"Alice\".into() }}'",
-                        status_code, status_code
+                         note: example '@example {status_code} User::default()' or '@example {status_code} User {{ id: 1, name: \"Alice\".into() }}'"
                     ),
                     span
                 ));
@@ -499,10 +497,9 @@ fn parse_doc_comments(lines: &[DocLine], _func_name: &str) -> Result<DocInfo, Pa
                 .map_err(|_| {
                     ParseError::with_span(
                         format!(
-                            "Invalid example expression '{}'\n\
+                            "Invalid example expression '{example_code_str}'\n\
                              help: expression must be valid Rust syntax\n\
-                             note: examples: 'User::default()', 'User {{ id: 1, name: \"Alice\".into() }}', 'vec![1, 2, 3]'",
-                            example_code_str
+                             note: examples: 'User::default()', 'User {{ id: 1, name: \"Alice\".into() }}', 'vec![1, 2, 3]'"
                         ),
                         span
                     )
@@ -595,10 +592,9 @@ fn parse_doc_comments(lines: &[DocLine], _func_name: &str) -> Result<DocInfo, Pa
             if !id.chars().all(|c| c.is_alphanumeric() || c == '_') {
                 return Err(ParseError::with_span(
                     format!(
-                        "Invalid operation ID '{}'\n\
+                        "Invalid operation ID '{id}'\n\
                          help: operation IDs must contain only alphanumeric characters and underscores\n\
-                         note: valid examples: 'getUserById', 'create_user', 'deleteItem123'",
-                        id
+                         note: valid examples: 'getUserById', 'create_user', 'deleteItem123'"
                     ),
                     span
                 ));
@@ -616,20 +612,17 @@ fn parse_doc_comments(lines: &[DocLine], _func_name: &str) -> Result<DocInfo, Pa
             let annotation = trimmed.split_whitespace().next().unwrap_or(trimmed);
             let annotation_name = annotation.strip_prefix('@').unwrap_or(annotation);
 
-            let error_msg = if let Some(suggestion) = find_closest_annotation(annotation_name) {
-                format!(
-                    "Unknown annotation '{}'\n\
-                     help: did you mean '@{}'?\n\
-                     note: valid annotations are @response, @example, @tag, @security, @id, @hidden, @rovo-ignore",
-                    annotation, suggestion
+            let error_msg = find_closest_annotation(annotation_name).map_or_else(
+                || format!(
+                    "Unknown annotation '{annotation}'\n\
+                     note: valid annotations are @response, @example, @tag, @security, @id, @hidden, @rovo-ignore"
+                ),
+                |suggestion| format!(
+                    "Unknown annotation '{annotation}'\n\
+                     help: did you mean '@{suggestion}'?\n\
+                     note: valid annotations are @response, @example, @tag, @security, @id, @hidden, @rovo-ignore"
                 )
-            } else {
-                format!(
-                    "Unknown annotation '{}'\n\
-                     note: valid annotations are @response, @example, @tag, @security, @id, @hidden, @rovo-ignore",
-                    annotation
-                )
-            };
+            );
 
             return Err(ParseError::with_span(error_msg, span));
         } else if !trimmed.is_empty() {
