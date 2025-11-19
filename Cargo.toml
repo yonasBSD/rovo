@@ -1,5 +1,5 @@
 [workspace]
-members = ["rovo-macros"]
+members = ["rovo-macros", "rovo-lsp"]
 resolver = "2"
 
 [workspace.package]

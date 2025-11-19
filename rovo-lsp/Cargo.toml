@@ -1,0 +1,18 @@
+[package]
+name = "rovo-lsp"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "rovo-lsp"
+path = "src/main.rs"
+
+[dependencies]
+tower-lsp = "0.20"
+tokio = { version = "1", features = ["full"] }
+serde_json = "1.0"
+regex = "1"
+serde = { version = "1.0", features = ["derive"] }
+
+[dev-dependencies]
+tempfile = "3"

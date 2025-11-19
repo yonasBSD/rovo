@@ -13,6 +13,7 @@ Built on [aide](https://github.com/tamasfe/aide), Rovo provides a declarative ap
 - Built-in Swagger/Redoc/Scalar UI integration
 - Type-safe response definitions
 - Minimal runtime overhead
+- **Neovim LSP integration** - See [NEOVIM.md](./NEOVIM.md) for editor support with completions, hover docs, and more
 
 ## Quick Start
 
