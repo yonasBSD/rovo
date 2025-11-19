@@ -402,6 +402,15 @@ just unused-deps
 just audit
 ```
 
+### Pre-commit Hooks
+
+Uses prek for git hooks:
+
+```bash
+prek install
+prek run  # Run manually
+```
+
 ### Available Commands
 
 - `just test` - Run all tests

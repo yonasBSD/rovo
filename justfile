@@ -7,15 +7,15 @@ default:
 
 # Run all tests
 test:
-    cargo test --all-features --all
+    cargo test --all-features --workspace
 
 # Run tests quietly
 test-quiet:
-    cargo test --all-features --all --quiet
+    cargo test --all-features --workspace --quiet
 
 # Run tests including ignored ones
 test-all:
-    cargo test --all-features --all -- --include-ignored
+    cargo test --all-features --workspace -- --include-ignored
 
 # Run clippy lints
 lint:
