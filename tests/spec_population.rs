@@ -1,10 +1,10 @@
-use rovo::aide::openapi::OpenApi;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Json, Response};
+use rovo::aide::openapi::OpenApi;
 use rovo::routing::get;
-use rovo::{rovo, Router};
 use rovo::schemars::JsonSchema;
+use rovo::{rovo, Router};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone)]
@@ -31,12 +31,13 @@ struct UserId {
 /// @response 404 () User not found
 /// @example 200 User::default()
 #[rovo]
-async fn get_user(
-    State(_state): State<AppState>,
-    Path(UserId { id }): Path<UserId>,
-) -> Response {
+async fn get_user(State(_state): State<AppState>, Path(UserId { id }): Path<UserId>) -> Response {
     if id == 1 {
-        Json(User { id: 1, name: "Alice".to_string() }).into_response()
+        Json(User {
+            id: 1,
+            name: "Alice".to_string(),
+        })
+        .into_response()
     } else {
         StatusCode::NOT_FOUND.into_response()
     }
@@ -50,7 +51,10 @@ async fn get_user(
 /// @response 200 Json<Vec<User>> List of all users
 #[rovo]
 async fn list_users(State(_state): State<AppState>) -> Json<Vec<User>> {
-    Json(vec![User { id: 1, name: "Alice".to_string() }])
+    Json(vec![User {
+        id: 1,
+        name: "Alice".to_string(),
+    }])
 }
 
 #[test]
@@ -73,7 +77,10 @@ fn test_spec_contains_paths() {
     let paths = &spec.paths.as_ref().unwrap().paths;
 
     assert!(paths.contains_key("/users"), "Should contain /users path");
-    assert!(paths.contains_key("/users/{id}"), "Should contain /users/{{id}} path");
+    assert!(
+        paths.contains_key("/users/{id}"),
+        "Should contain /users/{{id}} path"
+    );
 }
 
 #[test]
@@ -94,8 +101,14 @@ fn test_spec_contains_tags() {
     let user_path = get_path_item(paths.get("/users/{id}").unwrap());
     let get_op = user_path.get.as_ref().unwrap();
 
-    assert!(get_op.tags.contains(&"users".to_string()), "Should contain 'users' tag");
-    assert!(get_op.tags.contains(&"accounts".to_string()), "Should contain 'accounts' tag");
+    assert!(
+        get_op.tags.contains(&"users".to_string()),
+        "Should contain 'users' tag"
+    );
+    assert!(
+        get_op.tags.contains(&"accounts".to_string()),
+        "Should contain 'accounts' tag"
+    );
 }
 
 #[test]
@@ -120,7 +133,11 @@ fn test_spec_contains_descriptions() {
     assert_eq!(get_op.summary.as_ref().unwrap(), "Get user by ID.");
 
     assert!(get_op.description.is_some(), "Should have description");
-    assert!(get_op.description.as_ref().unwrap().contains("Returns user information"));
+    assert!(get_op
+        .description
+        .as_ref()
+        .unwrap()
+        .contains("Returns user information"));
 }
 
 #[test]
@@ -145,16 +162,11 @@ fn test_spec_contains_parameters() {
 
     // Find the 'id' parameter
     let id_param = get_op.parameters.iter().find(|p| {
-        match p {
-            aide::openapi::ReferenceOr::Item(param) => {
-                if let aide::openapi::Parameter::Path { parameter_data, .. } = param {
-                    parameter_data.name == "id"
-                } else {
-                    false
-                }
-            }
-            _ => false,
-        }
+        matches!(p,
+            rovo::aide::openapi::ReferenceOr::Item(
+                rovo::aide::openapi::Parameter::Path { parameter_data, .. }
+            ) if parameter_data.name == "id"
+        )
     });
 
     assert!(id_param.is_some(), "Should have 'id' path parameter");
@@ -184,11 +196,19 @@ fn test_spec_contains_responses() {
     let status_200 = aide::openapi::StatusCode::Code(200);
     let status_404 = aide::openapi::StatusCode::Code(404);
 
-    assert!(responses.responses.contains_key(&status_200), "Should have 200 response");
-    assert!(responses.responses.contains_key(&status_404), "Should have 404 response");
+    assert!(
+        responses.responses.contains_key(&status_200),
+        "Should have 200 response"
+    );
+    assert!(
+        responses.responses.contains_key(&status_404),
+        "Should have 404 response"
+    );
 
     // Verify 200 response has description
-    if let aide::openapi::ReferenceOr::Item(response_200) = responses.responses.get(&status_200).unwrap() {
+    if let aide::openapi::ReferenceOr::Item(response_200) =
+        responses.responses.get(&status_200).unwrap()
+    {
         assert_eq!(response_200.description, "User found successfully");
     } else {
         panic!("200 response should be an Item, not a Reference");
@@ -215,8 +235,13 @@ fn test_spec_contains_examples() {
     let responses = get_op.responses.as_ref().unwrap();
 
     let status_200 = aide::openapi::StatusCode::Code(200);
-    if let aide::openapi::ReferenceOr::Item(response_200) = responses.responses.get(&status_200).unwrap() {
-        assert!(response_200.content.contains_key("application/json"), "Should have JSON content");
+    if let aide::openapi::ReferenceOr::Item(response_200) =
+        responses.responses.get(&status_200).unwrap()
+    {
+        assert!(
+            response_200.content.contains_key("application/json"),
+            "Should have JSON content"
+        );
 
         let json_content = response_200.content.get("application/json").unwrap();
         assert!(json_content.example.is_some(), "Should have example");
@@ -247,8 +272,8 @@ fn test_spec_contains_operation_id() {
 
 #[test]
 fn test_spec_contains_request_body() {
-    use rovo::aide::axum::IntoApiResponse;
     use axum::response::Json;
+    use rovo::aide::axum::IntoApiResponse;
 
     #[derive(Deserialize, JsonSchema)]
     struct CreateUserRequest {
@@ -264,7 +289,13 @@ fn test_spec_contains_request_body() {
         State(_state): State<AppState>,
         Json(req): Json<CreateUserRequest>,
     ) -> impl IntoApiResponse {
-        (StatusCode::CREATED, Json(User { id: 1, name: req.name }))
+        (
+            StatusCode::CREATED,
+            Json(User {
+                id: 1,
+                name: req.name,
+            }),
+        )
     }
 
     let state = AppState;
@@ -287,7 +318,9 @@ fn test_spec_contains_request_body() {
 }
 
 // Helper function to extract PathItem from ReferenceOr
-fn get_path_item<'a>(path: &'a aide::openapi::ReferenceOr<aide::openapi::PathItem>) -> &'a aide::openapi::PathItem {
+fn get_path_item(
+    path: &aide::openapi::ReferenceOr<aide::openapi::PathItem>,
+) -> &aide::openapi::PathItem {
     match path {
         aide::openapi::ReferenceOr::Item(item) => item,
         _ => panic!("Expected PathItem, got Reference"),

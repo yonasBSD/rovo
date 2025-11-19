@@ -132,12 +132,12 @@ fn parse_doc_comments(lines: &[DocLine]) -> Result<DocInfo, ParseError> {
 
             return Err(ParseError::with_span(error_msg, span));
         } else if !trimmed.is_empty() {
-            if !title_set {
-                doc_info.title = Some(trimmed.to_string());
-                title_set = true;
-            } else {
+            if title_set {
                 in_description = true;
                 description_lines.push(trimmed.to_string());
+            } else {
+                doc_info.title = Some(trimmed.to_string());
+                title_set = true;
             }
         } else if in_description {
             // Empty line in description - continue collecting

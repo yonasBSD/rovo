@@ -184,12 +184,24 @@ pub fn parse_example(trimmed: &str, span: Span) -> Result<ExampleInfo, ParseErro
 
 /// Parse @tag annotation
 pub fn parse_tag(trimmed: &str, span: Span) -> Result<String, ParseError> {
-    Ok(parse_simple_annotation!(trimmed, span, "tag", "<tag_name>", "users"))
+    Ok(parse_simple_annotation!(
+        trimmed,
+        span,
+        "tag",
+        "<tag_name>",
+        "users"
+    ))
 }
 
 /// Parse @security annotation
 pub fn parse_security(trimmed: &str, span: Span) -> Result<String, ParseError> {
-    Ok(parse_simple_annotation!(trimmed, span, "security", "<scheme_name>", "bearer_auth"))
+    Ok(parse_simple_annotation!(
+        trimmed,
+        span,
+        "security",
+        "<scheme_name>",
+        "bearer_auth"
+    ))
 }
 
 /// Parse @id annotation
@@ -229,9 +241,26 @@ fn validate_status_code(status_code: u16, span: Span) -> Result<(), ParseError> 
 /// Check if a string looks like a description rather than a type
 fn looks_like_description(response_type_str: &str, description: &str) -> bool {
     const DESCRIPTION_WORDS: &[&str] = &[
-        "item", "deleted", "successfully", "created", "updated", "not", "error",
-        "failed", "success", "the", "a", "an", "user", "data", "resource",
-        "found", "missing", "invalid", "request", "response",
+        "item",
+        "deleted",
+        "successfully",
+        "created",
+        "updated",
+        "not",
+        "error",
+        "failed",
+        "success",
+        "the",
+        "a",
+        "an",
+        "user",
+        "data",
+        "resource",
+        "found",
+        "missing",
+        "invalid",
+        "request",
+        "response",
     ];
 
     let type_lower = response_type_str.to_lowercase();

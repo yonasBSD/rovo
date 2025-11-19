@@ -96,7 +96,7 @@ impl ToTokens for FuncItem {
     }
 }
 
-pub(crate) struct DocLine {
+pub struct DocLine {
     pub text: String,
     pub span: Span,
 }

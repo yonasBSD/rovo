@@ -1,10 +1,10 @@
-use rovo::aide::openapi::OpenApi;
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Json, Response};
+use rovo::aide::openapi::OpenApi;
 use rovo::routing::{delete, get, patch};
-use rovo::{rovo, Router};
 use rovo::schemars::JsonSchema;
+use rovo::{rovo, Router};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone)]
@@ -34,10 +34,7 @@ async fn list_items(State(_state): State<AppState>) -> Json<Vec<Item>> {
 /// @tag items
 /// @response 201 Json<Item> Item created
 #[rovo]
-async fn create_item(
-    State(_state): State<AppState>,
-    Json(_req): Json<CreateItem>,
-) -> Response {
+async fn create_item(State(_state): State<AppState>, Json(_req): Json<CreateItem>) -> Response {
     (StatusCode::CREATED, Json(Item::default())).into_response()
 }
 
@@ -45,10 +42,7 @@ async fn create_item(
 /// @tag items
 /// @response 200 Json<Item> Item updated
 #[rovo]
-async fn update_item(
-    State(_state): State<AppState>,
-    Json(_req): Json<CreateItem>,
-) -> Json<Item> {
+async fn update_item(State(_state): State<AppState>, Json(_req): Json<CreateItem>) -> Json<Item> {
     Json(Item::default())
 }
 
@@ -338,10 +332,14 @@ fn test_security_annotation() {
     );
 
     // Verify security requirement contains bearer_auth
-    let has_bearer_auth = get_op.security.iter().any(|sec| {
-        sec.contains_key("bearer_auth")
-    });
-    assert!(has_bearer_auth, "Should have bearer_auth security requirement");
+    let has_bearer_auth = get_op
+        .security
+        .iter()
+        .any(|sec| sec.contains_key("bearer_auth"));
+    assert!(
+        has_bearer_auth,
+        "Should have bearer_auth security requirement"
+    );
 }
 
 #[test]

@@ -1,10 +1,20 @@
+#![warn(clippy::all)]
+#![warn(clippy::nursery)]
+#![warn(clippy::pedantic)]
+#![warn(missing_docs)]
+#![warn(rust_2018_idioms)]
+#![deny(unsafe_code)]
+// Allow some overly strict pedantic lints
+#![allow(clippy::return_self_not_must_use)]
+#![allow(clippy::similar_names)]
+
 //! # Rovo
 //!
-//! A lightweight macro-based framework for generating OpenAPI documentation
+//! A lightweight macro-based framework for generating `OpenAPI` documentation
 //! from doc comments in Axum handlers.
 //!
 //! Rovo provides a declarative way to document your API endpoints using special
-//! annotations in doc comments, automatically generating OpenAPI specifications
+//! annotations in doc comments, automatically generating `OpenAPI` specifications
 //! without manual schema definitions.
 //!
 //! ## Quick Start
@@ -47,7 +57,7 @@ use ::axum::{response::IntoResponse, Extension};
 use aide::axum::ApiRouter as AideApiRouter;
 use aide::openapi::OpenApi;
 
-/// A drop-in replacement for axum::Router that adds OpenAPI documentation support.
+/// A drop-in replacement for `axum::Router` that adds `OpenAPI` documentation support.
 ///
 /// This Router works seamlessly with handlers decorated with `#[rovo]` and provides
 /// a fluent API for building documented APIs with Swagger UI integration.
@@ -80,6 +90,7 @@ where
     S: Clone + Send + Sync + 'static,
 {
     /// Create a new Router
+    #[must_use]
     pub fn new() -> Self {
         Self {
             inner: AideApiRouter::new(),
@@ -98,7 +109,8 @@ where
     }
 
     /// Nest another router at the given path
-    pub fn nest(mut self, path: &str, router: Router<S>) -> Self {
+    #[must_use]
+    pub fn nest(mut self, path: &str, router: Self) -> Self {
         self.inner = self.inner.nest(path, router.inner);
         // Preserve OAS spec and route from parent if not set in nested router
         if self.oas_spec.is_none() && router.oas_spec.is_some() {
@@ -108,16 +120,17 @@ where
         self
     }
 
-    /// Configure OpenAPI spec with default routes (/api.json and /api.yaml)
+    /// Configure `OpenAPI` spec with default routes (/api.json and /api.yaml)
     ///
     /// This automatically sets up endpoints for both JSON and YAML formats.
+    #[must_use]
     pub fn with_oas(mut self, api: OpenApi) -> Self {
         self.oas_spec = Some(api);
         self.oas_route = "/api.json".to_string();
         self
     }
 
-    /// Configure OpenAPI spec with custom base route
+    /// Configure `OpenAPI` spec with custom base route
     ///
     /// This sets up endpoints with the specified base route.
     /// For example, "/openapi" creates:
@@ -138,6 +151,7 @@ where
 
     /// Add Swagger UI route at the specified path
     #[cfg(feature = "swagger")]
+    #[must_use]
     pub fn with_swagger(mut self, swagger_path: &str) -> Self
     where
         S: Clone + Send + Sync + 'static,
@@ -152,20 +166,21 @@ where
 
     /// Add Redoc UI route at the specified path
     #[cfg(feature = "redoc")]
+    #[must_use]
     pub fn with_redoc(mut self, redoc_path: &str) -> Self
     where
         S: Clone + Send + Sync + 'static,
     {
         let api_route = self.oas_route.clone();
-        self.inner = self.inner.route(
-            redoc_path,
-            aide::redoc::Redoc::new(&api_route).axum_route(),
-        );
+        self.inner = self
+            .inner
+            .route(redoc_path, aide::redoc::Redoc::new(&api_route).axum_route());
         self
     }
 
     /// Add Scalar UI route at the specified path
     #[cfg(feature = "scalar")]
+    #[must_use]
     pub fn with_scalar(mut self, scalar_path: &str) -> Self
     where
         S: Clone + Send + Sync + 'static,
@@ -197,9 +212,7 @@ where
             let api_for_yml = api_mut.clone();
 
             // Determine base route (without extension)
-            let base_route = oas_route
-                .strip_suffix(".json")
-                .unwrap_or(&oas_route);
+            let base_route = oas_route.strip_suffix(".json").unwrap_or(&oas_route);
 
             // Add JSON endpoint to the axum::Router
             let router_with_json = axum_router.route(
@@ -257,9 +270,7 @@ where
             );
 
             // Add extension and state
-            router_with_yml
-                .layer(Extension(api_mut))
-                .with_state(state)
+            router_with_yml.layer(Extension(api_mut)).with_state(state)
         } else {
             // No OAS spec, just convert directly
             self.inner.with_state(state).into()
@@ -285,9 +296,7 @@ where
             let api_for_yml = api_mut.clone();
 
             // Determine base route (without extension)
-            let base_route = oas_route
-                .strip_suffix(".json")
-                .unwrap_or(&oas_route);
+            let base_route = oas_route.strip_suffix(".json").unwrap_or(&oas_route);
 
             // Add JSON endpoint to the axum::Router
             let router_with_json = axum_router.route(
@@ -357,7 +366,7 @@ where
         self.inner.finish_api(api)
     }
 
-    /// Finish the API with OpenAPI spec embedded via Extension layer
+    /// Finish the API with `OpenAPI` spec embedded via Extension layer
     pub fn finish_api_with_extension(self, api: aide::openapi::OpenApi) -> ::axum::Router<S>
     where
         S: Clone + Send + Sync + 'static,
@@ -368,7 +377,7 @@ where
             .layer(Extension(api_mut))
     }
 
-    /// Convert into the underlying aide ApiRouter
+    /// Convert into the underlying aide `ApiRouter`
     pub fn into_inner(self) -> AideApiRouter<S> {
         self.inner
     }
@@ -425,8 +434,9 @@ impl<S> ApiMethodRouter<S>
 where
     S: Clone + Send + Sync + 'static,
 {
-    /// Create a new ApiMethodRouter from aide's ApiMethodRouter
-    pub fn new(inner: aide::axum::routing::ApiMethodRouter<S>) -> Self {
+    /// Create a new `ApiMethodRouter` from aide's `ApiMethodRouter`
+    #[must_use]
+    pub const fn new(inner: aide::axum::routing::ApiMethodRouter<S>) -> Self {
         Self { inner }
     }
 
@@ -501,7 +511,7 @@ impl<S> From<ApiMethodRouter<S>> for aide::axum::routing::ApiMethodRouter<S> {
 ///     .route("/items/{id}", get(get_item).patch(update_item).delete(delete_item))
 /// ```
 pub mod routing {
-    use super::*;
+    use super::{ApiMethodRouter, IntoApiMethodRouter};
 
     /// Create a GET route with documentation from a `#[rovo]` decorated handler.
     pub fn get<S, H>(handler: H) -> ApiMethodRouter<S>
@@ -549,6 +559,7 @@ pub mod routing {
     }
 }
 
+/// Re-exports from aide's axum integration for convenience.
 pub mod axum {
     pub use aide::axum::{ApiRouter, IntoApiResponse};
 }
