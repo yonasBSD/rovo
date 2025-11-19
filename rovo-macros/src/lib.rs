@@ -1,7 +1,14 @@
+//! Procedural macros for the Rovo OpenAPI documentation framework.
+//!
+//! This crate provides the `#[rovo]` attribute macro that processes doc comments
+//! with special annotations to generate OpenAPI documentation automatically.
+
 use proc_macro::TokenStream;
 use quote::{quote, quote_spanned};
 
 mod parser;
+mod utils;
+
 use parser::parse_rovo_function;
 
 /// Macro that generates OpenAPI documentation from doc comments.

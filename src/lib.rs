@@ -1,3 +1,42 @@
+//! # Rovo
+//!
+//! A lightweight macro-based framework for generating OpenAPI documentation
+//! from doc comments in Axum handlers.
+//!
+//! Rovo provides a declarative way to document your API endpoints using special
+//! annotations in doc comments, automatically generating OpenAPI specifications
+//! without manual schema definitions.
+//!
+//! ## Quick Start
+//!
+//! ```ignore
+//! use rovo::{Router, rovo, routing::get};
+//! use aide::openapi::OpenApi;
+//!
+//! /// Get user by ID
+//! ///
+//! /// @response 200 Json<User> User found successfully
+//! /// @response 404 () User not found
+//! /// @tag users
+//! #[rovo]
+//! async fn get_user(Path(id): Path<u32>) -> impl IntoApiResponse {
+//!     // handler implementation
+//! }
+//!
+//! let app = Router::new()
+//!     .route("/users/:id", get(get_user))
+//!     .finish_api();
+//! ```
+//!
+//! ## Supported Annotations
+//!
+//! - `@response <code> <type> <description>` - Document response types
+//! - `@example <code> <expression>` - Provide response examples
+//! - `@tag <name>` - Group endpoints by tags
+//! - `@security <scheme>` - Specify security requirements
+//! - `@id <operation_id>` - Set custom operation ID
+//! - `@hidden` - Hide endpoint from documentation
+
 pub use rovo_macros::rovo;
 
 // Re-export aide for convenience
