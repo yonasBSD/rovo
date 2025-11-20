@@ -49,14 +49,31 @@ pub fn get_completions(content: &str, position: Position) -> Vec<CompletionItem>
     }
 
     let line = lines[position.line];
-    let prefix = &line[..position.character.min(line.len())];
+
+    // Convert UTF-16 character offset to UTF-8 byte index
+    // LSP Position.character is in UTF-16 code units, but Rust strings use UTF-8
+    let byte_index = {
+        let mut utf16_count = 0;
+        let mut byte_idx = 0;
+        for (bidx, ch) in line.char_indices() {
+            if utf16_count >= position.character {
+                break;
+            }
+            utf16_count += ch.len_utf16();
+            byte_idx = bidx + ch.len_utf8();
+        }
+        byte_idx.min(line.len())
+    };
+
+    let prefix = &line[..byte_index];
 
     // Check if we're in a doc comment
     if !prefix.trim_start().starts_with("///") {
         return Vec::new();
     }
 
-    let after_doc = prefix.trim_start_matches("///").trim_start();
+    // Handle indented doc comments by trimming whitespace first
+    let after_doc = prefix.trim_start().trim_start_matches("///").trim_start();
 
     // Check for status code completion (after @response or @example)
     if after_doc.starts_with("@response ") || after_doc.starts_with("@example ") {

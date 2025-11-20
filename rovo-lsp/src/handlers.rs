@@ -194,11 +194,11 @@ pub fn text_document_did_change(content: &str, _uri: Url) -> Vec<Diagnostic> {
                 range: Range {
                     start: Position {
                         line: diag.line as u32,
-                        character: 0,
+                        character: diag.char_start.unwrap_or(0) as u32,
                     },
                     end: Position {
                         line: diag.line as u32,
-                        character: 1000, // End of line
+                        character: diag.char_end.unwrap_or(1000) as u32,
                     },
                 },
                 severity: Some(severity),
