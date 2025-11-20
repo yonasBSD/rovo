@@ -8,22 +8,20 @@ local debounce_timers = {}
 
 -- Setup syntax highlighting for Rovo annotations
 local function setup_highlighting()
-  -- Define highlight groups with blend for better compatibility with overlay plugins
+  -- Link to standard Vim highlight groups
   vim.api.nvim_set_hl(0, 'RovoAnnotation', { link = 'Identifier', default = true })
   vim.api.nvim_set_hl(0, 'RovoStatusCode', { link = 'Number', default = true })
   vim.api.nvim_set_hl(0, 'RovoSecurityScheme', { link = 'String', default = true })
+
+  -- Namespace for extmarks (allows flash.nvim backdrop to overlay properly)
+  local ns_id = vim.api.nvim_create_namespace('rovo_highlights')
 
   -- Setup context-aware syntax highlighting that only applies near #[rovo]
   local function apply_rovo_highlights(bufnr)
     bufnr = bufnr or vim.api.nvim_get_current_buf()
 
-    -- Clear existing Rovo matches
-    local matches = vim.fn.getmatches()
-    for _, match in ipairs(matches) do
-      if match.group and match.group:match('^Rovo') then
-        vim.fn.matchdelete(match.id)
-      end
-    end
+    -- Clear existing Rovo extmarks
+    vim.api.nvim_buf_clear_namespace(bufnr, ns_id, 0, -1)
 
     -- Find all #[rovo] attributes and their line numbers
     local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
@@ -56,20 +54,61 @@ local function setup_highlighting()
       end
     end
 
-    -- Apply highlighting only to specific line ranges
-    -- Using matchadd with default priority (10) works reliably with Rust syntax
+    -- Apply highlighting using extmarks with priority below flash.nvim's backdrop (5000)
+    -- Priority 4999 is high enough to prevent Rust syntax from clearing, but low enough
+    -- to allow flash.nvim's backdrop to overlay and dim the highlights properly
     for _, range in ipairs(highlight_ranges) do
       local start_line, end_line = range[1], range[2]
-      local line_pattern = string.format('\\%%>%dl\\%%<%dl', start_line - 1, end_line + 2)
 
-      -- Highlight annotation keywords
-      vim.fn.matchadd('RovoAnnotation', line_pattern .. '^\\s*\\/\\/\\/.*\\zs@\\(response\\|tag\\|security\\|example\\|id\\|hidden\\)\\ze')
+      for line_idx = start_line, end_line do
+        local line = lines[line_idx]
+        if not line then break end
 
-      -- Highlight status codes (100-599)
-      vim.fn.matchadd('RovoStatusCode', line_pattern .. '^\\s*\\/\\/\\/ @\\w\\+\\s\\+\\zs[1-5][0-9]\\{2\\}\\ze')
+        -- Highlight annotation keywords (@response, @tag, etc.)
+        for _, annotation in ipairs({'@response', '@tag', '@security', '@example', '@id', '@hidden'}) do
+          -- Check if line is a doc comment with this annotation
+          if line:match('^%s*///%s*' .. annotation:gsub('[@]', '%%@')) then
+            local start_col, end_col = line:find(annotation, 1, true)
+            if start_col then
+              vim.api.nvim_buf_set_extmark(bufnr, ns_id, line_idx - 1, start_col - 1, {
+                end_col = end_col,
+                hl_group = 'RovoAnnotation',
+                priority = 4999,
+              })
+            end
+          end
+        end
 
-      -- Highlight security schemes
-      vim.fn.matchadd('RovoSecurityScheme', line_pattern .. '^\\s*\\/\\/\\/ @security\\s\\+\\zs\\(bearer\\|basic\\|apiKey\\|oauth2\\)\\ze')
+        -- Highlight status codes (100-599)
+        local status_match = line:match('^%s*///%s*@%w+%s+(%d%d%d)')
+        if status_match then
+          local code = tonumber(status_match)
+          if code and code >= 100 and code <= 599 then
+            local start_col, end_col = line:find(status_match, 1, true)
+            if start_col then
+              vim.api.nvim_buf_set_extmark(bufnr, ns_id, line_idx - 1, start_col - 1, {
+                end_col = end_col,
+                hl_group = 'RovoStatusCode',
+                priority = 4999,
+              })
+            end
+          end
+        end
+
+        -- Highlight security schemes (bearer, basic, apiKey, oauth2)
+        local security_match = line:match('^%s*///%s*@security%s+(%w+)')
+        if security_match and (security_match == 'bearer' or security_match == 'basic' or
+                               security_match == 'apiKey' or security_match == 'oauth2') then
+          local start_col, end_col = line:find(security_match, 1, true)
+          if start_col then
+            vim.api.nvim_buf_set_extmark(bufnr, ns_id, line_idx - 1, start_col - 1, {
+              end_col = end_col,
+              hl_group = 'RovoSecurityScheme',
+              priority = 4999,
+            })
+          end
+        end
+      end
     end
   end
 
