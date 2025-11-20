@@ -1,6 +1,6 @@
 use crate::completion;
 use crate::diagnostics;
-use crate::utils::utf16_pos_to_byte_index;
+use crate::utils::{byte_index_to_utf16_col, utf16_pos_to_byte_index};
 use tower_lsp::lsp_types::*;
 
 /// Handle completion request for a text document
@@ -182,6 +182,7 @@ fn get_annotation_at_position(line: &str, char_idx: usize) -> Option<String> {
 /// A vector of diagnostics for any validation errors
 pub fn text_document_did_change(content: &str, _uri: Url) -> Vec<Diagnostic> {
     let diagnostics_list = diagnostics::validate_annotations(content);
+    let lines: Vec<&str> = content.lines().collect();
 
     diagnostics_list
         .into_iter()
@@ -191,15 +192,29 @@ pub fn text_document_did_change(content: &str, _uri: Url) -> Vec<Diagnostic> {
                 diagnostics::DiagnosticSeverity::Warning => DiagnosticSeverity::WARNING,
             };
 
+            // Get the line content to convert byte indices to UTF-16 positions
+            let line = lines.get(diag.line).map(|l| *l).unwrap_or("");
+            let line_utf16_len = byte_index_to_utf16_col(line, line.len());
+
+            // Convert byte indices to UTF-16 code unit offsets
+            let char_start = diag
+                .char_start
+                .map(|idx| byte_index_to_utf16_col(line, idx))
+                .unwrap_or(0);
+            let char_end = diag
+                .char_end
+                .map(|idx| byte_index_to_utf16_col(line, idx))
+                .unwrap_or(line_utf16_len);
+
             Diagnostic {
                 range: Range {
                     start: Position {
                         line: diag.line as u32,
-                        character: diag.char_start.unwrap_or(0) as u32,
+                        character: char_start as u32,
                     },
                     end: Position {
                         line: diag.line as u32,
-                        character: diag.char_end.unwrap_or(1000) as u32,
+                        character: char_end as u32,
                     },
                 },
                 severity: Some(severity),

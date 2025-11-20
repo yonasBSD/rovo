@@ -1,5 +1,23 @@
 /// Utility functions for LSP position handling
 
+/// Convert UTF-8 byte index to LSP UTF-16 character position
+///
+/// LSP uses UTF-16 code units for character positions, but Rust strings use UTF-8.
+/// This function converts from byte index to UTF-16 code unit offset.
+///
+/// # Arguments
+/// * `line` - The line of text
+/// * `byte_idx` - The UTF-8 byte index
+///
+/// # Returns
+/// The corresponding UTF-16 code unit offset
+pub fn byte_index_to_utf16_col(line: &str, byte_idx: usize) -> usize {
+    line[..byte_idx.min(line.len())]
+        .chars()
+        .map(|ch| ch.len_utf16())
+        .sum()
+}
+
 /// Convert LSP UTF-16 character position to UTF-8 byte index
 ///
 /// LSP uses UTF-16 code units for character positions, but Rust strings use UTF-8.
@@ -71,5 +89,32 @@ mod tests {
     fn test_end_of_line() {
         let line = "Hello";
         assert_eq!(utf16_pos_to_byte_index(line, 5), Some(5));
+    }
+
+    #[test]
+    fn test_byte_to_utf16_ascii() {
+        let line = "Hello, world!";
+        assert_eq!(byte_index_to_utf16_col(line, 0), 0);
+        assert_eq!(byte_index_to_utf16_col(line, 5), 5);
+        assert_eq!(byte_index_to_utf16_col(line, 13), 13);
+    }
+
+    #[test]
+    fn test_byte_to_utf16_unicode() {
+        // "Hello 世界" - "世" and "界" are 3 bytes each in UTF-8, 1 UTF-16 code unit each
+        let line = "Hello 世界";
+        assert_eq!(byte_index_to_utf16_col(line, 0), 0);
+        assert_eq!(byte_index_to_utf16_col(line, 6), 6); // Start of '世'
+        assert_eq!(byte_index_to_utf16_col(line, 9), 7); // Start of '界'
+        assert_eq!(byte_index_to_utf16_col(line, 12), 8); // End of string
+    }
+
+    #[test]
+    fn test_byte_to_utf16_emoji() {
+        // "Hi 👋" - emoji is 4 bytes in UTF-8, 2 UTF-16 code units (surrogate pair)
+        let line = "Hi 👋";
+        assert_eq!(byte_index_to_utf16_col(line, 0), 0);
+        assert_eq!(byte_index_to_utf16_col(line, 3), 3); // Start of emoji
+        assert_eq!(byte_index_to_utf16_col(line, 7), 5); // After emoji (2 UTF-16 units)
     }
 }
