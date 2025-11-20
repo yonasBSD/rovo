@@ -14,8 +14,12 @@ test-quiet:
     cargo test --all-features --workspace --quiet
 
 # Run tests including ignored ones
-test-all:
+test-rust-all:
     cargo test --all-features --workspace -- --include-ignored
+
+# Run all tests (Rust + VSCode + JetBrains)
+test-all: test vscode-test jetbrains-test
+    @echo "All tests passed!"
 
 # Run clippy lints
 lint:
@@ -24,6 +28,14 @@ lint:
 # Fix clippy warnings automatically
 lint-fix:
     cargo clippy --fix --allow-dirty --allow-staged --all-targets --all-features
+
+# Lint all projects (Rust + VSCode + JetBrains)
+lint-all: lint vscode-lint jetbrains-lint
+    @echo "All linting completed!"
+
+# Fix all lint issues (Rust + VSCode)
+lint-fix-all: lint-fix vscode-lint-fix
+    @echo "All lint fixes applied!"
 
 # Format code
 fmt:
@@ -40,6 +52,10 @@ build:
 # Build in release mode
 build-release:
     cargo build --release --all-features
+
+# Build all projects (Rust + VSCode + JetBrains)
+build-all: build vscode-build jetbrains-build
+    @echo "All builds completed!"
 
 # Clean build artifacts
 clean:
@@ -110,3 +126,139 @@ watch:
 # Watch for changes and run clippy
 watch-lint:
     cargo watch -x clippy
+
+# --- Coverage Commands ---
+
+# Run tests with coverage report (HTML)
+coverage:
+    cargo llvm-cov --all-features --workspace --html
+
+# Run tests with coverage report (terminal summary only)
+coverage-summary:
+    cargo llvm-cov --all-features --workspace --summary-only
+
+# Run tests with coverage and open HTML report
+coverage-open:
+    cargo llvm-cov --all-features --workspace --html --open
+
+# Generate lcov.info for CI/external tools
+coverage-lcov:
+    cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info
+
+# Clean coverage artifacts
+coverage-clean:
+    cargo llvm-cov clean
+
+# Install coverage tool
+install-coverage:
+    cargo install cargo-llvm-cov
+
+# --- LSP-Specific Commands ---
+
+# Test only the LSP crate
+test-lsp:
+    cargo test --package rovo-lsp --all-features
+
+# Test LSP with coverage
+coverage-lsp:
+    cargo llvm-cov --package rovo-lsp --all-features --html --open
+
+# Build the LSP binary
+build-lsp:
+    cargo build --package rovo-lsp --release
+
+# Run LSP server (for manual testing)
+run-lsp:
+    cargo run --package rovo-lsp
+
+# Test only code actions
+test-code-actions:
+    cargo test --package rovo-lsp --test code_actions_test
+
+# Test only handlers
+test-handlers:
+    cargo test --package rovo-lsp --test handlers_test
+
+# Watch LSP tests
+watch-lsp:
+    cargo watch -x "test --package rovo-lsp"
+
+# Update compilefail test outputs
+update-compilefail:
+    TRYBUILD=overwrite cargo test compile_fail_tests
+
+# --- Combined Commands ---
+
+# Run all quality checks including coverage
+check-all: fmt-check lint-all test-all coverage-summary
+    @echo "All quality checks passed!"
+
+# Quick check (no coverage)
+quick-check: fmt-check lint test-quiet
+    @echo "Quick checks passed!"
+
+# --- VSCode Extension Commands ---
+
+# Install VSCode extension dependencies
+vscode-install:
+    cd vscode-rovo && npm install
+
+# Build VSCode extension
+vscode-build:
+    cd vscode-rovo && npm run compile
+
+# Lint VSCode extension
+vscode-lint:
+    cd vscode-rovo && npm run lint
+
+# Fix VSCode extension lint issues
+vscode-lint-fix:
+    cd vscode-rovo && npm run lint:fix
+
+# Package VSCode extension
+vscode-package:
+    cd vscode-rovo && npm run package
+
+# Publish VSCode extension (requires VSCE_PAT)
+vscode-publish:
+    cd vscode-rovo && npx vsce publish
+
+# Test VSCode extension (TypeScript type checking)
+vscode-test:
+    cd vscode-rovo && npm test
+
+# Install local VSCode extension for testing
+vscode-install-local: vscode-package
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cd vscode-rovo
+    VSIX=$(ls -t *.vsix | head -1)
+    code --uninstall-extension arthurdw.rovo-lsp || true
+    code --install-extension "$VSIX"
+    echo "Installed $VSIX. Reload VSCode to activate."
+
+# --- JetBrains Plugin Commands ---
+
+# Build JetBrains plugin
+jetbrains-build:
+    cd jetbrains-plugin && ./gradlew build
+
+# Lint JetBrains plugin
+jetbrains-lint:
+    cd jetbrains-plugin && ./gradlew check
+
+# Test JetBrains plugin
+jetbrains-test:
+    cd jetbrains-plugin && ./gradlew test
+
+# Build JetBrains plugin for distribution
+jetbrains-package:
+    cd jetbrains-plugin && ./gradlew buildPlugin
+
+# Run JetBrains plugin in IDE sandbox
+jetbrains-run:
+    cd jetbrains-plugin && ./gradlew runIde
+
+# Verify JetBrains plugin
+jetbrains-verify:
+    cd jetbrains-plugin && ./gradlew verifyPlugin

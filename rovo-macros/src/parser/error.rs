@@ -32,3 +32,37 @@ impl fmt::Display for ParseError {
         write!(f, "{}", self.message)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn creates_error_without_span() {
+        let error = ParseError::new("test error");
+        assert!(error.span().is_none());
+        assert_eq!(error.to_string(), "test error");
+    }
+
+    #[test]
+    fn creates_error_with_span() {
+        let span = Span::call_site();
+        let error = ParseError::with_span("test error", span);
+        assert!(error.span().is_some());
+        assert_eq!(error.to_string(), "test error");
+    }
+
+    #[test]
+    fn display_format_works() {
+        let error = ParseError::new("custom message");
+        let formatted = format!("{}", error);
+        assert_eq!(formatted, "custom message");
+    }
+
+    #[test]
+    fn debug_format_works() {
+        let error = ParseError::new("debug test");
+        let debug_str = format!("{:?}", error);
+        assert!(debug_str.contains("ParseError"));
+    }
+}

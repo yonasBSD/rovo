@@ -263,11 +263,255 @@ fn looks_like_description(response_type_str: &str, description: &str) -> bool {
         "response",
     ];
 
-    let type_lower = response_type_str.to_lowercase();
-    DESCRIPTION_WORDS.iter().any(|&word| type_lower == word)
+    // Check if it exactly matches a description word (case-sensitive)
+    DESCRIPTION_WORDS.contains(&response_type_str)
         || (!response_type_str.contains('<')
             && !response_type_str.contains('(')
             && !response_type_str.contains(')')
             && !response_type_str.contains("::")
+            && response_type_str
+                .chars()
+                .next()
+                .is_some_and(char::is_lowercase)
             && description.chars().next().is_some_and(char::is_lowercase))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_valid_response() {
+        let result = parse_response(
+            "@response 200 Json<User> Successfully retrieved",
+            Span::call_site(),
+        );
+        assert!(result.is_ok());
+        let info = result.unwrap();
+        assert_eq!(info.status_code, 200);
+        assert_eq!(info.description, "Successfully retrieved");
+    }
+
+    #[test]
+    fn response_requires_all_parts() {
+        let result = parse_response("@response 200", Span::call_site());
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Invalid @response"));
+    }
+
+    #[test]
+    fn response_validates_status_code() {
+        let result = parse_response("@response 999 Json<User> Test", Span::call_site());
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("out of valid range"));
+    }
+
+    #[test]
+    fn response_rejects_empty_description() {
+        let result = parse_response("@response 200 Json<User>  ", Span::call_site());
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Missing description"));
+    }
+
+    #[test]
+    fn response_detects_missing_type() {
+        let result = parse_response(
+            "@response 200 successfully retrieved user",
+            Span::call_site(),
+        );
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Missing response type"));
+    }
+
+    #[test]
+    fn response_handles_complex_types() {
+        let result = parse_response(
+            "@response 200 (StatusCode,Json<Vec<User>>) Multiple users",
+            Span::call_site(),
+        );
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn parses_valid_example() {
+        let result = parse_example("@example 200 User::default()", Span::call_site());
+        assert!(result.is_ok());
+        let info = result.unwrap();
+        assert_eq!(info.status_code, 200);
+    }
+
+    #[test]
+    fn example_requires_code_and_expression() {
+        let result = parse_example("@example 200", Span::call_site());
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Invalid @example"));
+    }
+
+    #[test]
+    fn example_validates_status_code() {
+        let result = parse_example("@example 1000 User::default()", Span::call_site());
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn example_rejects_empty_expression() {
+        let result = parse_example("@example 200  ", Span::call_site());
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Empty example expression"));
+    }
+
+    #[test]
+    fn parses_valid_tag() {
+        let result = parse_tag("@tag users", Span::call_site());
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "users");
+    }
+
+    #[test]
+    fn tag_requires_value() {
+        let result = parse_tag("@tag", Span::call_site());
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Invalid @tag"));
+    }
+
+    #[test]
+    fn tag_rejects_empty_value() {
+        let result = parse_tag("@tag  ", Span::call_site());
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Empty"));
+    }
+
+    #[test]
+    fn parses_valid_security() {
+        let result = parse_security("@security bearer_auth", Span::call_site());
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "bearer_auth");
+    }
+
+    #[test]
+    fn security_requires_value() {
+        let result = parse_security("@security", Span::call_site());
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn parses_valid_id() {
+        let result = parse_id("@id getUserById", Span::call_site());
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "getUserById");
+    }
+
+    #[test]
+    fn id_allows_underscores() {
+        let result = parse_id("@id get_user_by_id", Span::call_site());
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "get_user_by_id");
+    }
+
+    #[test]
+    fn id_allows_numbers() {
+        let result = parse_id("@id getUser123", Span::call_site());
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn id_rejects_special_characters() {
+        let result = parse_id("@id get-user", Span::call_site());
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Invalid operation ID"));
+    }
+
+    #[test]
+    fn id_rejects_spaces() {
+        let result = parse_id("@id get user", Span::call_site());
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn validates_status_code_range() {
+        assert!(validate_status_code(200, Span::call_site()).is_ok());
+        assert!(validate_status_code(100, Span::call_site()).is_ok());
+        assert!(validate_status_code(599, Span::call_site()).is_ok());
+        assert!(validate_status_code(99, Span::call_site()).is_err());
+        assert!(validate_status_code(600, Span::call_site()).is_err());
+    }
+
+    #[test]
+    fn detects_description_words_as_non_types() {
+        assert!(looks_like_description("successfully", "retrieved user"));
+        assert!(looks_like_description("error", "occurred"));
+        assert!(looks_like_description("user", "not found"));
+        assert!(looks_like_description("the", "item was deleted"));
+    }
+
+    #[test]
+    fn recognizes_valid_types() {
+        assert!(!looks_like_description(
+            "Json<User>",
+            "Successfully retrieved"
+        ));
+        assert!(!looks_like_description("(StatusCode, Json<T>)", "Created"));
+        assert!(!looks_like_description("User::Response", "Success"));
+        assert!(!looks_like_description("()", "No content"));
+    }
+
+    #[test]
+    fn detects_lowercase_start_as_description() {
+        assert!(looks_like_description("item", "was created"));
+        assert!(!looks_like_description("Item", "Was created")); // Uppercase start
+    }
+
+    #[test]
+    fn handles_multiword_descriptions_in_response() {
+        let result = parse_response(
+            "@response 200 Json<User> Successfully retrieved the user data",
+            Span::call_site(),
+        );
+        assert!(result.is_ok());
+        let info = result.unwrap();
+        assert_eq!(info.description, "Successfully retrieved the user data");
+    }
+
+    #[test]
+    fn handles_complex_example_expressions() {
+        let result = parse_example(
+            "@example 201 User { id: 1, name: \"Alice\".into() }",
+            Span::call_site(),
+        );
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn response_handles_unit_type() {
+        let result = parse_response("@response 204 () No content", Span::call_site());
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn invalid_status_code_string() {
+        let result = parse_response("@response abc Json<User> Test", Span::call_site());
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Invalid status code"));
+    }
 }
