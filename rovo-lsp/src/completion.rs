@@ -1,3 +1,4 @@
+use crate::utils::utf16_pos_to_byte_index;
 use serde::{Deserialize, Serialize};
 
 /// Position in a text document
@@ -52,18 +53,7 @@ pub fn get_completions(content: &str, position: Position) -> Vec<CompletionItem>
 
     // Convert UTF-16 character offset to UTF-8 byte index
     // LSP Position.character is in UTF-16 code units, but Rust strings use UTF-8
-    let byte_index = {
-        let mut utf16_count = 0;
-        let mut byte_idx = 0;
-        for (bidx, ch) in line.char_indices() {
-            if utf16_count >= position.character {
-                break;
-            }
-            utf16_count += ch.len_utf16();
-            byte_idx = bidx + ch.len_utf8();
-        }
-        byte_idx.min(line.len())
-    };
+    let byte_index = utf16_pos_to_byte_index(line, position.character).unwrap_or(line.len());
 
     let prefix = &line[..byte_index];
 

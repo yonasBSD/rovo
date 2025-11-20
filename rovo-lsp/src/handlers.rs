@@ -1,5 +1,6 @@
 use crate::completion;
 use crate::diagnostics;
+use crate::utils::utf16_pos_to_byte_index;
 use tower_lsp::lsp_types::*;
 
 /// Handle completion request for a text document
@@ -79,7 +80,7 @@ pub fn text_document_hover(content: &str, position: Position) -> Option<Hover> {
     }
 
     let line = lines[line_idx];
-    let char_idx = position.character as usize;
+    let char_idx = utf16_pos_to_byte_index(line, position.character as usize)?;
 
     // Check if cursor is on a status code
     if let Some(status_info) = get_status_code_at_position(line, char_idx) {
@@ -230,7 +231,8 @@ pub fn find_tag_references(content: &str, position: Position, uri: Url) -> Optio
     let line = lines[line_idx];
 
     // Extract tag name from current position
-    let tag_name = extract_tag_at_position(line, position.character as usize)?;
+    let char_idx = utf16_pos_to_byte_index(line, position.character as usize)?;
+    let tag_name = extract_tag_at_position(line, char_idx)?;
 
     // Find all references to this tag in the document
     let mut locations = Vec::new();
