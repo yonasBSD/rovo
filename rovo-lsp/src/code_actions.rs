@@ -180,7 +180,7 @@ fn create_insert_annotation_action(
 
     CodeActionOrCommand::CodeAction(CodeAction {
         title: title.to_string(),
-        kind: Some(CodeActionKind::QUICKFIX),
+        kind: Some(CodeActionKind::REFACTOR),
         edit: Some(WorkspaceEdit {
             changes: Some(changes),
             ..Default::default()

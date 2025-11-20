@@ -183,6 +183,10 @@ test-handlers:
 watch-lsp:
     cargo watch -x "test --package rovo-lsp"
 
+# Update compilefail test outputs
+update-compilefail:
+    TRYBUILD=overwrite cargo test compile_fail_tests
+
 # --- Combined Commands ---
 
 # Run all quality checks including coverage
