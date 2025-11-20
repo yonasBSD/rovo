@@ -353,8 +353,11 @@ mod tests {
 
         // All completions should have documentation
         for completion in &completions {
-            assert!(completion.documentation.is_some(),
-                "Completion '{}' missing documentation", completion.label);
+            assert!(
+                completion.documentation.is_some(),
+                "Completion '{}' missing documentation",
+                completion.label
+            );
             assert!(!completion.documentation.as_ref().unwrap().is_empty());
         }
     }

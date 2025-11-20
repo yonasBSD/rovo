@@ -5,9 +5,12 @@ use regex::Regex;
 static WRAPPER_RE: Lazy<Regex> =
     Lazy::new(|| Regex::new(r"^(?:Json|Vec|Option|Result|Arc|Box|Rc)<(.*)>$").unwrap());
 // Match pub, pub(crate), pub(super), pub(in path::to::module), etc.
-static STRUCT_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"^\s*(?:pub(?:\([^)]+\))?\s+)?struct\s+").unwrap());
-static ENUM_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"^\s*(?:pub(?:\([^)]+\))?\s+)?enum\s+").unwrap());
-static TYPE_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"^\s*(?:pub(?:\([^)]+\))?\s+)?type\s+").unwrap());
+static STRUCT_RE: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"^\s*(?:pub(?:\([^)]+\))?\s+)?struct\s+").unwrap());
+static ENUM_RE: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"^\s*(?:pub(?:\([^)]+\))?\s+)?enum\s+").unwrap());
+static TYPE_RE: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"^\s*(?:pub(?:\([^)]+\))?\s+)?type\s+").unwrap());
 static ANNOTATION_TYPE_RE: Lazy<Regex> =
     Lazy::new(|| Regex::new(r"///\s*@(?:response|example)\s+\d+\s+(\S+)").unwrap());
 

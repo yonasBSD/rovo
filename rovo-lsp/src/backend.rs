@@ -200,10 +200,11 @@ impl LanguageServer for Backend {
         }
 
         let line = lines[line_idx];
-        let char_idx = match crate::utils::utf16_pos_to_byte_index(line, position.character as usize) {
-            Some(idx) => idx,
-            None => return Ok(None),
-        };
+        let char_idx =
+            match crate::utils::utf16_pos_to_byte_index(line, position.character as usize) {
+                Some(idx) => idx,
+                None => return Ok(None),
+            };
 
         // Check if cursor is on a type
         if let Some((response_type, _, _)) =
@@ -228,17 +229,26 @@ impl LanguageServer for Backend {
                             if let Some(struct_pos) = code_part.find("struct") {
                                 let after_struct = &code_part[struct_pos + 6..];
                                 after_struct.trim_start().find(&type_name).map(|p| {
-                                    struct_pos + 6 + (after_struct.len() - after_struct.trim_start().len()) + p
+                                    struct_pos
+                                        + 6
+                                        + (after_struct.len() - after_struct.trim_start().len())
+                                        + p
                                 })
                             } else if let Some(enum_pos) = code_part.find("enum") {
                                 let after_enum = &code_part[enum_pos + 4..];
                                 after_enum.trim_start().find(&type_name).map(|p| {
-                                    enum_pos + 4 + (after_enum.len() - after_enum.trim_start().len()) + p
+                                    enum_pos
+                                        + 4
+                                        + (after_enum.len() - after_enum.trim_start().len())
+                                        + p
                                 })
                             } else if let Some(type_pos) = code_part.find("type") {
                                 let after_type = &code_part[type_pos + 4..];
                                 after_type.trim_start().find(&type_name).map(|p| {
-                                    type_pos + 4 + (after_type.len() - after_type.trim_start().len()) + p
+                                    type_pos
+                                        + 4
+                                        + (after_type.len() - after_type.trim_start().len())
+                                        + p
                                 })
                             } else {
                                 // Fallback to simple find in code part

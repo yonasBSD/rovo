@@ -9,10 +9,7 @@ fn test_uri() -> Url {
 /// Helper to create a range at a specific line
 fn range_at_line(line: u32) -> Range {
     Range {
-        start: Position {
-            line,
-            character: 0,
-        },
+        start: Position { line, character: 0 },
         end: Position {
             line,
             character: 100,
@@ -601,9 +598,7 @@ async fn handler() {}
 
     // Find the REST responses action
     let rest_action = actions.iter().find_map(|a| match a {
-        CodeActionOrCommand::CodeAction(ca)
-            if ca.title.contains("Add common REST responses") =>
-        {
+        CodeActionOrCommand::CodeAction(ca) if ca.title.contains("Add common REST responses") => {
             Some(ca)
         }
         _ => None,

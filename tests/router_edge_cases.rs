@@ -70,16 +70,14 @@ fn test_router_finish_without_state() {
 
 #[test]
 fn test_router_into_inner() {
-    let router = Router::new()
-        .route("/items", get(get_item));
+    let router = Router::new().route("/items", get(get_item));
 
     let _inner = router.into_inner();
 }
 
 #[test]
 fn test_router_finish_api() {
-    let router = Router::new()
-        .route("/items", get(get_item));
+    let router = Router::new().route("/items", get(get_item));
 
     let mut api = OpenApi::default();
     api.info.title = "Test API".to_string();
@@ -89,8 +87,7 @@ fn test_router_finish_api() {
 
 #[test]
 fn test_router_finish_api_with_extension() {
-    let router = Router::new()
-        .route("/items", get(get_item));
+    let router = Router::new().route("/items", get(get_item));
 
     let mut api = OpenApi::default();
     api.info.title = "Test API".to_string();
@@ -131,7 +128,10 @@ fn test_method_chaining_with_get() {
     let paths = &spec.paths.as_ref().unwrap().paths;
     let items_path = get_path_item(paths.get("/items").unwrap());
 
-    assert!(items_path.get.is_some(), "Should have GET method from chaining");
+    assert!(
+        items_path.get.is_some(),
+        "Should have GET method from chaining"
+    );
     assert!(items_path.post.is_some(), "Should have POST method");
 }
 
@@ -151,7 +151,10 @@ fn test_method_chaining_with_put() {
     let items_path = get_path_item(paths.get("/items").unwrap());
 
     assert!(items_path.get.is_some(), "Should have GET method");
-    assert!(items_path.put.is_some(), "Should have PUT method from chaining");
+    assert!(
+        items_path.put.is_some(),
+        "Should have PUT method from chaining"
+    );
 }
 
 #[test]
@@ -162,7 +165,7 @@ fn test_with_oas_route_strips_json_extension() {
 
     let app = Router::new()
         .route("/items", get(get_item))
-        .with_oas_route(api, "/spec.json")  // Should strip .json
+        .with_oas_route(api, "/spec.json") // Should strip .json
         .with_state(state);
 
     let rt = tokio::runtime::Runtime::new().unwrap();
@@ -210,7 +213,7 @@ fn test_with_oas_route_strips_yaml_extension() {
 
     let app = Router::new()
         .route("/items", get(get_item))
-        .with_oas_route(api, "/spec.yaml")  // Should strip .yaml
+        .with_oas_route(api, "/spec.yaml") // Should strip .yaml
         .with_state(state);
 
     let rt = tokio::runtime::Runtime::new().unwrap();
@@ -243,7 +246,7 @@ fn test_with_oas_route_strips_yml_extension() {
 
     let app = Router::new()
         .route("/items", get(get_item))
-        .with_oas_route(api, "/spec.yml")  // Should strip .yml
+        .with_oas_route(api, "/spec.yml") // Should strip .yml
         .with_state(state);
 
     let rt = tokio::runtime::Runtime::new().unwrap();
@@ -281,7 +284,7 @@ fn test_nest_with_child_having_oas() {
             "/child",
             Router::new()
                 .route("/items", get(get_item))
-                .with_oas(child_api)
+                .with_oas(child_api),
         )
         .with_state(state);
 
@@ -306,7 +309,7 @@ fn test_nest_both_have_oas() {
             "/child",
             Router::new()
                 .route("/items", get(get_item))
-                .with_oas(child_api)
+                .with_oas(child_api),
         )
         .with_state(state);
 
@@ -350,34 +353,46 @@ fn test_router_without_oas() {
 fn test_all_http_methods() {
     /// GET handler
     #[rovo]
-    async fn handler_get() -> StatusCode { StatusCode::OK }
+    async fn handler_get() -> StatusCode {
+        StatusCode::OK
+    }
 
     /// POST handler
     #[rovo]
-    async fn handler_post() -> StatusCode { StatusCode::OK }
+    async fn handler_post() -> StatusCode {
+        StatusCode::OK
+    }
 
     /// PUT handler
     #[rovo]
-    async fn handler_put() -> StatusCode { StatusCode::OK }
+    async fn handler_put() -> StatusCode {
+        StatusCode::OK
+    }
 
     /// PATCH handler
     #[rovo]
-    async fn handler_patch() -> StatusCode { StatusCode::OK }
+    async fn handler_patch() -> StatusCode {
+        StatusCode::OK
+    }
 
     /// DELETE handler
     #[rovo]
-    async fn handler_delete() -> StatusCode { StatusCode::OK }
+    async fn handler_delete() -> StatusCode {
+        StatusCode::OK
+    }
 
     let mut api = OpenApi::default();
     api.info.title = "Test API".to_string();
 
     let app = Router::new()
-        .route("/all-methods",
+        .route(
+            "/all-methods",
             get(handler_get)
                 .post(handler_post)
                 .put(handler_put)
                 .patch(handler_patch)
-                .delete(handler_delete))
+                .delete(handler_delete),
+        )
         .with_oas(api)
         .with_state(());
 

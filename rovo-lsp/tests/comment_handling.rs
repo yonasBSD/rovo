@@ -74,7 +74,10 @@ struct UserProfile { data: UserData }
 "#;
 
     // Should find exact matches only
-    assert_eq!(type_resolver::find_type_definition(content, "User"), Some(1));
+    assert_eq!(
+        type_resolver::find_type_definition(content, "User"),
+        Some(1)
+    );
     assert_eq!(
         type_resolver::find_type_definition(content, "UserData"),
         Some(2)
