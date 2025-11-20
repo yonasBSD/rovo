@@ -1,13 +1,11 @@
 name: Deploy JetBrains Plugin
 
-# TODO: Temporarily disabled automatic deployment
-# Re-enable by uncommenting workflow_run trigger below
 on:
-  workflow_dispatch:  # Manual trigger only
-  # workflow_run:
-  #   workflows: ["Weekly Release"]
-  #   types:
-  #     - completed
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["Weekly Release"]
+    types:
+      - completed
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -27,8 +25,8 @@ jobs:
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
-          java-version: '17'
+          distribution: "temurin"
+          java-version: "17"
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
