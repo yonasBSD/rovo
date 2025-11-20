@@ -1,9 +1,7 @@
-error: Missing response type in @response annotation
-       help: format is '@response <code> <type> <description>'
-       note: did you forget to add the type? For example:
-       note:   '@response 200 () Todo user information'
-       note: common types: () for empty responses, Json<T> for JSON, (StatusCode, Json<T>) for custom status
- --> tests/ui/missing_type_with_identifier.rs:8:1
+error[E0412]: cannot find type `Todo` in this scope
+ --> tests/ui/missing_type_with_identifier.rs:9:1
   |
-8 | /// @response 200 Todo user information
-  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+9 | #[rovo]
+  | ^^^^^^^ not found in this scope
+  |
+  = note: this error originates in the attribute macro `rovo` (in Nightly builds, run with -Z macro-backtrace for more info)

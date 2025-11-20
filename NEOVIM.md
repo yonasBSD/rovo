@@ -2,11 +2,29 @@
 
 Language Server Protocol support for Rovo annotations in Neovim.
 
+<!--toc:start-->
+- [Rovo - Neovim Integration](#rovo-neovim-integration)
+  - [Features](#features)
+  - [Installation](#installation)
+    - [lazy.nvim](#lazynvim)
+      - [Silencing LSP Notifications](#silencing-lsp-notifications)
+    - [packer.nvim](#packernvim)
+    - [Manual](#manual)
+  - [Usage](#usage)
+    - [Example](#example)
+  - [Configuration](#configuration)
+    - [Highlight Groups](#highlight-groups)
+  - [Troubleshooting](#troubleshooting)
+  - [License](#license)
+<!--toc:end-->
+
 ## Features
 
-- **Completions** - Intelligent suggestions for annotations, status codes, and security schemes
+- **Completions** - Intelligent suggestions for annotations, status codes, and
+  security schemes
 - **Diagnostics** - Real-time validation of annotation syntax
-- **Hover Documentation** - Detailed docs for annotations, status codes, and security schemes
+- **Hover Documentation** - Detailed docs for annotations, status codes, and
+  security schemes
 - **Code Actions** - Quick fixes for adding annotations and macros
 - **Go-to-Definition** - Navigate to type definitions from annotations
 - **Find References** - Find all usages of tags
@@ -28,6 +46,32 @@ Language Server Protocol support for Rovo annotations in Neovim.
 }
 ```
 
+#### Silencing LSP Notifications
+
+Noisy LSP notifications can be suppressed using Noice.nvim:
+
+```lua
+{
+  "folke/noice.nvim",
+  opts = {
+    lsp = {
+      hover = { silent = true },  -- Suppress double hover warnings
+    },
+    routes = {
+      {
+        filter = {
+          any = {
+            { find = "prepareRename" },      -- Suppress rename errors
+            { find = "No references found" },
+          },
+        },
+        opts = { skip = true },
+      },
+    },
+  },
+}
+```
+
 ### packer.nvim
 
 ```lua
@@ -45,16 +89,19 @@ use {
 ### Manual
 
 Install the LSP server from crates.io:
+
 ```bash
 cargo install rovo-lsp
 ```
 
 Or from source:
+
 ```bash
 cargo install --path rovo-lsp
 ```
 
 Then add to your Neovim config:
+
 ```lua
 require('rovo').setup()
 ```
@@ -93,6 +140,7 @@ require('rovo').setup({
 ### Highlight Groups
 
 Customize colors by overriding these highlight groups:
+
 - `RovoAnnotation` - Annotation keywords
 - `RovoStatusCode` - HTTP status codes
 - `RovoSecurityScheme` - Security schemes
@@ -100,10 +148,12 @@ Customize colors by overriding these highlight groups:
 ## Troubleshooting
 
 **LSP not starting?**
+
 - Verify installation: `which rovo-lsp`
 - Check logs: `:LspLog` in Neovim
 
 **No completions?**
+
 - Ensure you're in a doc comment (`///`)
 - Type `@` to trigger completions
 - Verify you're in a Rust workspace with `Cargo.toml`

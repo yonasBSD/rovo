@@ -52,3 +52,85 @@ pub fn extract_doc_text(attr: &str) -> String {
     }
     String::new()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn extracts_simple_state_type() {
+        let tokens: TokenStream = "State<AppState>".parse().unwrap();
+        let result = extract_state_type(&tokens);
+        assert!(result.is_some());
+        assert_eq!(result.unwrap().to_string(), "AppState");
+    }
+
+    #[test]
+    fn extracts_nested_state_type() {
+        let tokens: TokenStream = "State<Arc<RwLock<Database>>>".parse().unwrap();
+        let result = extract_state_type(&tokens);
+        assert!(result.is_some());
+        // Token spacing may vary
+        let result_str = result.unwrap().to_string();
+        assert!(result_str.contains("Arc"));
+        assert!(result_str.contains("RwLock"));
+        assert!(result_str.contains("Database"));
+    }
+
+    #[test]
+    fn returns_none_when_no_state() {
+        let tokens: TokenStream = "Path<u32>, Json<User>".parse().unwrap();
+        let result = extract_state_type(&tokens);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn handles_state_with_surrounding_params() {
+        let tokens: TokenStream = "Path<u32>, State<AppState>, Json<User>".parse().unwrap();
+        let result = extract_state_type(&tokens);
+        assert!(result.is_some());
+        assert_eq!(result.unwrap().to_string(), "AppState");
+    }
+
+    #[test]
+    fn extracts_doc_text_simple() {
+        let attr = r#"doc = "This is a comment""#;
+        let result = extract_doc_text(attr);
+        assert_eq!(result, "This is a comment");
+    }
+
+    #[test]
+    fn extracts_doc_text_with_special_chars() {
+        let attr = r#"doc = "Contains 'quotes' and \"escapes\"""#;
+        let result = extract_doc_text(attr);
+        assert_eq!(result, r#"Contains 'quotes' and \"escapes\""#);
+    }
+
+    #[test]
+    fn returns_empty_string_when_no_quotes() {
+        let attr = "doc = no quotes here";
+        let result = extract_doc_text(attr);
+        assert_eq!(result, "");
+    }
+
+    #[test]
+    fn returns_empty_string_when_only_one_quote() {
+        let attr = r#"doc = "incomplete"#;
+        let result = extract_doc_text(attr);
+        assert_eq!(result, "");
+    }
+
+    #[test]
+    fn handles_empty_doc_text() {
+        let attr = r#"doc = """#;
+        let result = extract_doc_text(attr);
+        assert_eq!(result, "");
+    }
+
+    #[test]
+    fn extracts_multiline_doc_text() {
+        let attr = r#"doc = "Line 1\nLine 2\nLine 3""#;
+        let result = extract_doc_text(attr);
+        assert_eq!(result, r"Line 1\nLine 2\nLine 3");
+    }
+}

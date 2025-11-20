@@ -110,3 +110,69 @@ watch:
 # Watch for changes and run clippy
 watch-lint:
     cargo watch -x clippy
+
+# --- Coverage Commands ---
+
+# Run tests with coverage report (HTML)
+coverage:
+    cargo llvm-cov --all-features --workspace --html
+
+# Run tests with coverage report (terminal summary only)
+coverage-summary:
+    cargo llvm-cov --all-features --workspace --summary-only
+
+# Run tests with coverage and open HTML report
+coverage-open:
+    cargo llvm-cov --all-features --workspace --html --open
+
+# Generate lcov.info for CI/external tools
+coverage-lcov:
+    cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info
+
+# Clean coverage artifacts
+coverage-clean:
+    cargo llvm-cov clean
+
+# Install coverage tool
+install-coverage:
+    cargo install cargo-llvm-cov
+
+# --- LSP-Specific Commands ---
+
+# Test only the LSP crate
+test-lsp:
+    cargo test --package rovo-lsp --all-features
+
+# Test LSP with coverage
+coverage-lsp:
+    cargo llvm-cov --package rovo-lsp --all-features --html --open
+
+# Build the LSP binary
+build-lsp:
+    cargo build --package rovo-lsp --release
+
+# Run LSP server (for manual testing)
+run-lsp:
+    cargo run --package rovo-lsp
+
+# Test only code actions
+test-code-actions:
+    cargo test --package rovo-lsp --test code_actions_test
+
+# Test only handlers
+test-handlers:
+    cargo test --package rovo-lsp --test handlers_test
+
+# Watch LSP tests
+watch-lsp:
+    cargo watch -x "test --package rovo-lsp"
+
+# --- Combined Commands ---
+
+# Run all quality checks including coverage
+check-all: fmt-check lint test coverage-summary
+    @echo "All quality checks passed!"
+
+# Quick check (no coverage)
+quick-check: fmt-check lint test-quiet
+    @echo "Quick checks passed!"

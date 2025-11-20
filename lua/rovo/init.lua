@@ -168,7 +168,10 @@ local function setup_highlighting()
             timer:stop()
             timer:close()
           end
-          debounce_timers[bufnr] = nil
+          -- Only clear if this timer is still the active one for this buffer
+          if debounce_timers[bufnr] == timer then
+            debounce_timers[bufnr] = nil
+          end
 
           -- Apply highlights if buffer is still valid
           if vim.api.nvim_buf_is_valid(bufnr) then

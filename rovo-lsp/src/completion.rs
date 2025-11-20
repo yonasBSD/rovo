@@ -239,4 +239,340 @@ mod tests {
         let completions = get_completions(content, position);
         assert_eq!(completions.len(), 0);
     }
+
+    #[test]
+    fn test_status_code_completion_after_response() {
+        let content = "/// @response ";
+        let position = Position {
+            line: 0,
+            character: 14,
+        };
+        let completions = get_completions(content, position);
+        // Should offer status codes
+        assert!(!completions.is_empty());
+        assert!(completions.iter().any(|c| c.label == "200"));
+        assert!(completions.iter().any(|c| c.label == "404"));
+        assert!(completions.iter().any(|c| c.label == "500"));
+    }
+
+    #[test]
+    fn test_status_code_completion_after_example() {
+        let content = "/// @example ";
+        let position = Position {
+            line: 0,
+            character: 13,
+        };
+        let completions = get_completions(content, position);
+        // Should offer status codes for @example too
+        assert!(!completions.is_empty());
+        assert!(completions.iter().any(|c| c.label == "200"));
+    }
+
+    #[test]
+    fn test_status_code_filtering_by_prefix() {
+        let content = "/// @response 4";
+        let position = Position {
+            line: 0,
+            character: 15,
+        };
+        let completions = get_completions(content, position);
+        // Should only show 4xx codes
+        assert!(completions.iter().all(|c| c.label.starts_with('4')));
+        assert!(completions.iter().any(|c| c.label == "400"));
+        assert!(completions.iter().any(|c| c.label == "404"));
+        assert!(!completions.iter().any(|c| c.label == "200"));
+    }
+
+    #[test]
+    fn test_status_code_filtering_specific() {
+        let content = "/// @response 20";
+        let position = Position {
+            line: 0,
+            character: 16,
+        };
+        let completions = get_completions(content, position);
+        // Should show 20x codes
+        assert!(completions.iter().all(|c| c.label.starts_with("20")));
+        assert!(completions.iter().any(|c| c.label == "200"));
+        assert!(completions.iter().any(|c| c.label == "201"));
+        assert!(completions.iter().any(|c| c.label == "204"));
+    }
+
+    #[test]
+    fn test_security_scheme_completion() {
+        let content = "/// @security ";
+        let position = Position {
+            line: 0,
+            character: 14,
+        };
+        let completions = get_completions(content, position);
+        // Should offer security schemes
+        assert!(!completions.is_empty());
+        assert!(completions.iter().any(|c| c.label == "bearer"));
+        assert!(completions.iter().any(|c| c.label == "basic"));
+        assert!(completions.iter().any(|c| c.label == "apiKey"));
+        assert!(completions.iter().any(|c| c.label == "oauth2"));
+    }
+
+    #[test]
+    fn test_security_scheme_filtering() {
+        let content = "/// @security b";
+        let position = Position {
+            line: 0,
+            character: 15,
+        };
+        let completions = get_completions(content, position);
+        // Should only show schemes starting with 'b'
+        assert_eq!(completions.len(), 2); // bearer and basic
+        assert!(completions.iter().any(|c| c.label == "bearer"));
+        assert!(completions.iter().any(|c| c.label == "basic"));
+        assert!(!completions.iter().any(|c| c.label == "oauth2"));
+    }
+
+    #[test]
+    fn test_security_scheme_filtering_specific() {
+        let content = "/// @security be";
+        let position = Position {
+            line: 0,
+            character: 16,
+        };
+        let completions = get_completions(content, position);
+        // Should only show bearer
+        assert_eq!(completions.len(), 1);
+        assert_eq!(completions[0].label, "bearer");
+    }
+
+    #[test]
+    fn test_completion_items_have_documentation() {
+        let content = "/// @";
+        let position = Position {
+            line: 0,
+            character: 5,
+        };
+        let completions = get_completions(content, position);
+
+        // All completions should have documentation
+        for completion in &completions {
+            assert!(completion.documentation.is_some(),
+                "Completion '{}' missing documentation", completion.label);
+            assert!(!completion.documentation.as_ref().unwrap().is_empty());
+        }
+    }
+
+    #[test]
+    fn test_status_code_completions_have_details() {
+        let content = "/// @response ";
+        let position = Position {
+            line: 0,
+            character: 14,
+        };
+        let completions = get_completions(content, position);
+
+        // All status codes should have detail and documentation
+        for completion in &completions {
+            assert!(completion.detail.is_some());
+            assert!(completion.documentation.is_some());
+        }
+    }
+
+    #[test]
+    fn test_security_scheme_completions_have_details() {
+        let content = "/// @security ";
+        let position = Position {
+            line: 0,
+            character: 14,
+        };
+        let completions = get_completions(content, position);
+
+        // All security schemes should have detail and documentation
+        for completion in &completions {
+            assert!(completion.detail.is_some());
+            assert!(completion.documentation.is_some());
+            assert!(!completion.documentation.as_ref().unwrap().is_empty());
+        }
+    }
+
+    #[test]
+    fn test_handles_indented_doc_comments() {
+        let content = "    /// @";
+        let position = Position {
+            line: 0,
+            character: 9,
+        };
+        let completions = get_completions(content, position);
+        // Should work with indented comments
+        assert_eq!(completions.len(), 6);
+    }
+
+    #[test]
+    fn test_handles_utf16_positions() {
+        // Content with multibyte characters - just ensure it doesn't crash
+        let content = "/// 世界 @response";
+        let position = Position {
+            line: 0,
+            character: 12, // Somewhere in the line
+        };
+        let completions = get_completions(content, position);
+        // Should not crash with UTF-16 positions
+        // (may or may not offer completions depending on exact position)
+        assert!(completions.len() <= 11); // At most all status codes
+    }
+
+    #[test]
+    fn test_out_of_bounds_line() {
+        let content = "/// @";
+        let position = Position {
+            line: 100, // Way out of bounds
+            character: 0,
+        };
+        let completions = get_completions(content, position);
+        // Should return empty, not crash
+        assert_eq!(completions.len(), 0);
+    }
+
+    #[test]
+    fn test_empty_filter_shows_all_annotations() {
+        let content = "/// @";
+        let position = Position {
+            line: 0,
+            character: 5,
+        };
+        let completions = get_completions(content, position);
+        // Should show all 6 annotations
+        assert_eq!(completions.len(), 6);
+    }
+
+    #[test]
+    fn test_partial_annotation_filters() {
+        let content = "/// @s";
+        let position = Position {
+            line: 0,
+            character: 6,
+        };
+        let completions = get_completions(content, position);
+        // Should only show @security
+        assert_eq!(completions.len(), 1);
+        assert_eq!(completions[0].label, "@security");
+    }
+
+    #[test]
+    fn test_completion_has_insert_text() {
+        let content = "/// @";
+        let position = Position {
+            line: 0,
+            character: 5,
+        };
+        let completions = get_completions(content, position);
+
+        // All completions should have insert text
+        for completion in &completions {
+            assert!(completion.insert_text.is_some());
+        }
+    }
+
+    #[test]
+    fn test_response_completion_has_snippet() {
+        let content = "/// @r";
+        let position = Position {
+            line: 0,
+            character: 6,
+        };
+        let completions = get_completions(content, position);
+
+        assert_eq!(completions.len(), 1);
+        let insert_text = completions[0].insert_text.as_ref().unwrap();
+        // Should have snippet placeholders
+        assert!(insert_text.contains("${1"));
+        assert!(insert_text.contains("${2"));
+    }
+
+    #[test]
+    fn test_multiline_content() {
+        let content = "/// First line\n/// @";
+        let position = Position {
+            line: 1,
+            character: 5,
+        };
+        let completions = get_completions(content, position);
+        // Should work on second line
+        assert_eq!(completions.len(), 6);
+    }
+
+    #[test]
+    fn test_no_completion_after_complete_annotation() {
+        let content = "/// @response 200 Json<T> Success";
+        let position = Position {
+            line: 0,
+            character: 20, // In the middle
+        };
+        let completions = get_completions(content, position);
+        // Should not offer completions after the annotation is complete
+        assert_eq!(completions.len(), 0);
+    }
+
+    #[test]
+    fn test_empty_status_filter() {
+        let completions = get_status_code_completions("");
+        // Should return all status codes
+        assert_eq!(completions.len(), 11); // 200, 201, 204, 400, 401, 403, 404, 409, 422, 500, 503
+    }
+
+    #[test]
+    fn test_status_5xx_filter() {
+        let completions = get_status_code_completions("5");
+        // Should only return 5xx codes
+        assert!(completions.iter().all(|c| c.label.starts_with('5')));
+        assert!(completions.iter().any(|c| c.label == "500"));
+        assert!(completions.iter().any(|c| c.label == "503"));
+    }
+
+    #[test]
+    fn test_empty_security_filter() {
+        let completions = get_security_scheme_completions("");
+        // Should return all security schemes
+        assert_eq!(completions.len(), 4); // bearer, basic, apiKey, oauth2
+    }
+
+    #[test]
+    fn test_security_oauth_filter() {
+        let completions = get_security_scheme_completions("o");
+        // Should only return oauth2
+        assert_eq!(completions.len(), 1);
+        assert_eq!(completions[0].label, "oauth2");
+    }
+
+    #[test]
+    fn test_completion_item_kind() {
+        let content = "/// @";
+        let position = Position {
+            line: 0,
+            character: 5,
+        };
+        let completions = get_completions(content, position);
+
+        // Annotations should be snippets
+        for completion in &completions {
+            assert!(matches!(completion.kind, CompletionItemKind::Snippet));
+        }
+    }
+
+    #[test]
+    fn test_status_code_kind() {
+        let completions = get_status_code_completions("");
+
+        // Status codes should be keywords
+        for completion in &completions {
+            assert!(matches!(completion.kind, CompletionItemKind::Keyword));
+        }
+    }
+
+    #[test]
+    fn test_security_scheme_kind() {
+        let completions = get_security_scheme_completions("");
+
+        // Security schemes should be keywords
+        for completion in &completions {
+            assert!(matches!(completion.kind, CompletionItemKind::Keyword));
+        }
+    }
 }
