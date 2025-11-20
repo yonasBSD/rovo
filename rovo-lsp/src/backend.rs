@@ -200,7 +200,10 @@ impl LanguageServer for Backend {
         }
 
         let line = lines[line_idx];
-        let char_idx = position.character as usize;
+        let char_idx = match crate::utils::utf16_pos_to_byte_index(line, position.character as usize) {
+            Some(idx) => idx,
+            None => return Ok(None),
+        };
 
         // Check if cursor is on a type
         if let Some((response_type, _, _)) =
@@ -213,9 +216,35 @@ impl LanguageServer for Backend {
                     crate::type_resolver::find_type_definition(&content, &type_name)
                 {
                     // Find the exact position of the type name in the definition line
+                    // Strip comments to avoid matching inside comments
                     let def_col = lines
                         .get(def_line)
-                        .and_then(|l| l.find(&type_name))
+                        .and_then(|l| {
+                            // Remove line comments
+                            let code_part = l.split("//").next().unwrap_or(l);
+
+                            // Search for type name with word boundary
+                            // Look for it after struct/enum/type keyword
+                            if let Some(struct_pos) = code_part.find("struct") {
+                                let after_struct = &code_part[struct_pos + 6..];
+                                after_struct.trim_start().find(&type_name).map(|p| {
+                                    struct_pos + 6 + (after_struct.len() - after_struct.trim_start().len()) + p
+                                })
+                            } else if let Some(enum_pos) = code_part.find("enum") {
+                                let after_enum = &code_part[enum_pos + 4..];
+                                after_enum.trim_start().find(&type_name).map(|p| {
+                                    enum_pos + 4 + (after_enum.len() - after_enum.trim_start().len()) + p
+                                })
+                            } else if let Some(type_pos) = code_part.find("type") {
+                                let after_type = &code_part[type_pos + 4..];
+                                after_type.trim_start().find(&type_name).map(|p| {
+                                    type_pos + 4 + (after_type.len() - after_type.trim_start().len()) + p
+                                })
+                            } else {
+                                // Fallback to simple find in code part
+                                code_part.find(&type_name)
+                            }
+                        })
                         .unwrap_or(0);
 
                     let location = Location {

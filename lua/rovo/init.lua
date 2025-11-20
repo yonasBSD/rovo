@@ -213,15 +213,10 @@ function M.debug_highlight()
     print(string.format("Found %d #[rovo] attribute(s)", count))
   end
 
-  -- Check active matches
-  local matches = vim.fn.getmatches()
-  local rovo_matches = 0
-  for _, match in ipairs(matches) do
-    if match.group and match.group:match('^Rovo') then
-      rovo_matches = rovo_matches + 1
-    end
-  end
-  print(string.format("Active Rovo matches: %d", rovo_matches))
+  -- Check active extmarks
+  local ns_id = vim.api.nvim_create_namespace('rovo_highlights')
+  local extmarks = vim.api.nvim_buf_get_extmarks(bufnr, ns_id, 0, -1, {})
+  print(string.format("Active Rovo extmarks: %d", #extmarks))
 
   -- Force re-apply highlighting
   local apply_fn = _G._rovo_apply_highlights
