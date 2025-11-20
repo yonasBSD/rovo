@@ -161,19 +161,20 @@ local function setup_highlighting()
       debounce_timers[bufnr] = timer
 
       timer:start(500, 0, function()
-        -- Stop and close timer to prevent leaks
-        if not timer:is_closing() then
-          timer:stop()
-          timer:close()
-        end
-        debounce_timers[bufnr] = nil
+        -- Schedule all API calls to avoid fast event context errors
+        vim.schedule(function()
+          -- Stop and close timer to prevent leaks
+          if not timer:is_closing() then
+            timer:stop()
+            timer:close()
+          end
+          debounce_timers[bufnr] = nil
 
-        -- Apply highlights if buffer is still valid
-        if vim.api.nvim_buf_is_valid(bufnr) then
-          vim.schedule(function()
+          -- Apply highlights if buffer is still valid
+          if vim.api.nvim_buf_is_valid(bufnr) then
             apply_rovo_highlights(bufnr)
-          end)
-        end
+          end
+        end)
       end)
     end,
   })
@@ -230,6 +231,29 @@ function M.debug_highlight()
   end
 end
 
+--- Setup Rovo LSP and syntax highlighting for Neovim
+---
+--- This function configures both the syntax highlighting and LSP client for Rovo annotations.
+--- It's designed to work alongside rust-analyzer without conflicts.
+---
+---@param opts table|nil Configuration options
+---   - enable_highlighting: boolean|nil - Enable syntax highlighting (default: true)
+---   - on_attach: function|nil - Custom on_attach callback for LSP client
+---   - cmd: string[]|nil - Override LSP server command (default: { 'rovo-lsp' })
+---   - root_dir: function|nil - Override root directory detection
+---   - Any other lspconfig options (filetypes, settings, etc.)
+---
+--- Note: The on_attach callback is merged with Rovo's internal handler, which:
+---   - Disables semanticTokensProvider (delegated to rust-analyzer)
+---   - Calls your custom on_attach if provided
+---
+--- Example:
+---   require('rovo').setup({
+---     on_attach = function(client, bufnr)
+---       -- Your custom LSP keybindings here
+---     end,
+---     cmd = { 'rovo-lsp', '--verbose' },  -- Optional: override command
+---   })
 function M.setup(opts)
   -- Prevent duplicate setup to avoid creating duplicate autocmds
   if setup_done then

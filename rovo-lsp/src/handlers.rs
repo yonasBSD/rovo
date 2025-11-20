@@ -322,6 +322,56 @@ fn extract_tag_at_position(line: &str, char_idx: usize) -> Option<String> {
     }
 }
 
+/// Prepare rename - check if rename is possible at position and return the range
+///
+/// # Arguments
+/// * `content` - The document content
+/// * `position` - Cursor position to check
+///
+/// # Returns
+/// The range and placeholder text for the rename, or None if not renameable
+pub fn prepare_rename(content: &str, position: Position) -> Option<(Range, String)> {
+    let line_idx = position.line as usize;
+    let lines: Vec<&str> = content.lines().collect();
+
+    if line_idx >= lines.len() {
+        return None;
+    }
+
+    let line = lines[line_idx];
+
+    // Extract tag name from current position
+    let char_idx = utf16_pos_to_byte_index(line, position.character as usize)?;
+    let tag_name = extract_tag_at_position(line, char_idx)?;
+
+    // Find @tag in the line to get the range
+    let tag_pos = line.find("@tag")?;
+    let raw_after_tag = &line[tag_pos + 4..];
+    let trimmed_after_tag = raw_after_tag.trim_start();
+    let whitespace = raw_after_tag.len() - trimmed_after_tag.len();
+
+    let tag_name_start = tag_pos + 4 + whitespace;
+    let tag_name_end = tag_name_start + tag_name.len();
+
+    // Convert byte indices to UTF-16 positions
+    let start_utf16 = byte_index_to_utf16_col(line, tag_name_start);
+    let end_utf16 = byte_index_to_utf16_col(line, tag_name_end);
+
+    Some((
+        Range {
+            start: Position {
+                line: line_idx as u32,
+                character: start_utf16 as u32,
+            },
+            end: Position {
+                line: line_idx as u32,
+                character: end_utf16 as u32,
+            },
+        },
+        tag_name,
+    ))
+}
+
 /// Rename a tag and update all its references in the document
 ///
 /// # Arguments
