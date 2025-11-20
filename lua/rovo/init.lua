@@ -8,12 +8,10 @@ local debounce_timers = {}
 
 -- Setup syntax highlighting for Rovo annotations
 local function setup_highlighting()
-  -- Link to standard Vim highlight groups (idempotent - safe to call multiple times)
-  vim.api.nvim_set_hl(0, 'RovoAnnotation', { link = 'Identifier' })
-  vim.api.nvim_set_hl(0, 'RovoStatusCode', { link = 'Number' })
-  vim.api.nvim_set_hl(0, 'RovoSecurityScheme', { link = 'String' })
-  -- Types are highlighted by tree-sitter injections
-
+  -- Define highlight groups with blend for better compatibility with overlay plugins
+  vim.api.nvim_set_hl(0, 'RovoAnnotation', { link = 'Identifier', default = true })
+  vim.api.nvim_set_hl(0, 'RovoStatusCode', { link = 'Number', default = true })
+  vim.api.nvim_set_hl(0, 'RovoSecurityScheme', { link = 'String', default = true })
 
   -- Setup context-aware syntax highlighting that only applies near #[rovo]
   local function apply_rovo_highlights(bufnr)
@@ -59,19 +57,19 @@ local function setup_highlighting()
     end
 
     -- Apply highlighting only to specific line ranges
+    -- Using matchadd with default priority (10) works reliably with Rust syntax
     for _, range in ipairs(highlight_ranges) do
       local start_line, end_line = range[1], range[2]
       local line_pattern = string.format('\\%%>%dl\\%%<%dl', start_line - 1, end_line + 2)
 
-      -- Highlight annotation keywords (like macros: @response, @tag, etc.)
-      -- Priority 10 for compatibility with plugins like Leap
-      vim.fn.matchadd('RovoAnnotation', line_pattern .. '^\\s*\\/\\/\\/.*\\zs@\\(response\\|tag\\|security\\|example\\|id\\|hidden\\)\\ze', 10)
+      -- Highlight annotation keywords
+      vim.fn.matchadd('RovoAnnotation', line_pattern .. '^\\s*\\/\\/\\/.*\\zs@\\(response\\|tag\\|security\\|example\\|id\\|hidden\\)\\ze')
 
       -- Highlight status codes (100-599)
-      vim.fn.matchadd('RovoStatusCode', line_pattern .. '^\\s*\\/\\/\\/ @\\w\\+\\s\\+\\zs[1-5][0-9]\\{2\\}\\ze', 10)
+      vim.fn.matchadd('RovoStatusCode', line_pattern .. '^\\s*\\/\\/\\/ @\\w\\+\\s\\+\\zs[1-5][0-9]\\{2\\}\\ze')
 
       -- Highlight security schemes
-      vim.fn.matchadd('RovoSecurityScheme', line_pattern .. '^\\s*\\/\\/\\/ @security\\s\\+\\zs\\(bearer\\|basic\\|apiKey\\|oauth2\\)\\ze', 10)
+      vim.fn.matchadd('RovoSecurityScheme', line_pattern .. '^\\s*\\/\\/\\/ @security\\s\\+\\zs\\(bearer\\|basic\\|apiKey\\|oauth2\\)\\ze')
     end
   end
 
