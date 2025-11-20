@@ -573,7 +573,7 @@ async fn handler() {}
     let action = response_action.unwrap();
 
     // Check it has the right kind
-    assert_eq!(action.kind, Some(CodeActionKind::QUICKFIX));
+    assert_eq!(action.kind, Some(CodeActionKind::REFACTOR));
 
     // Check it has a workspace edit
     assert!(action.edit.is_some());
