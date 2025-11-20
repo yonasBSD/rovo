@@ -1,7 +1,7 @@
 plugins {
     id("java")
-    id("org.jetbrains.kotlin.jvm") version "2.1.0"  // Latest stable compatible with IntelliJ plugin
-    id("org.jetbrains.intellij") version "1.17.4"   // Latest 1.x version
+    id("org.jetbrains.kotlin.jvm") version "2.1.0"
+    id("org.jetbrains.intellij.platform") version "2.10.4"  // New 2.x plugin
 }
 
 group = "com.rovo"
@@ -9,40 +9,40 @@ version = "0.1.0"
 
 repositories {
     mavenCentral()
+    intellijPlatform {
+        defaultRepositories()
+    }
 }
 
 dependencies {
     implementation("org.jetbrains.kotlin:kotlin-stdlib")
+
+    intellijPlatform {
+        intellijIdeaCommunity("2024.3")
+        bundledPlugin("com.intellij.java")
+        plugin("com.redhat.devtools.lsp4ij:0.10.0")
+    }
 }
 
-intellij {
-    version.set("2024.3")  // Latest stable IntelliJ Platform
-    type.set("IC") // IntelliJ IDEA Community Edition
-    plugins.set(listOf("com.redhat.devtools.lsp4ij:0.10.0"))  // Updated LSP4IJ
+kotlin {
+    jvmToolchain(17)
 }
 
-tasks {
-    withType<JavaCompile> {
-        sourceCompatibility = "17"
-        targetCompatibility = "17"
+intellijPlatform {
+    pluginConfiguration {
+        ideaVersion {
+            sinceBuild = "243"
+            untilBuild = provider { null }  // Support all future versions
+        }
     }
 
-    withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
-        kotlinOptions.jvmTarget = "17"
+    signing {
+        certificateChain = providers.environmentVariable("CERTIFICATE_CHAIN")
+        privateKey = providers.environmentVariable("PRIVATE_KEY")
+        password = providers.environmentVariable("PRIVATE_KEY_PASSWORD")
     }
 
-    patchPluginXml {
-        sinceBuild.set("243")  // 2024.3+
-        untilBuild.set("999.*")  // Support all future versions
-    }
-
-    signPlugin {
-        certificateChain.set(System.getenv("CERTIFICATE_CHAIN"))
-        privateKey.set(System.getenv("PRIVATE_KEY"))
-        password.set(System.getenv("PRIVATE_KEY_PASSWORD"))
-    }
-
-    publishPlugin {
-        token.set(System.getenv("PUBLISH_TOKEN"))
+    publishing {
+        token = providers.environmentVariable("PUBLISH_TOKEN")
     }
 }
