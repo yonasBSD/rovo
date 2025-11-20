@@ -15,17 +15,17 @@ pub fn utf16_pos_to_byte_index(line: &str, utf16_col: usize) -> Option<usize> {
     let mut utf16_count = 0usize;
 
     for (byte_idx, ch) in line.char_indices() {
-        if utf16_count >= utf16_col {
+        if utf16_count == utf16_col {
             return Some(byte_idx);
         }
         utf16_count += ch.len_utf16();
     }
 
-    // If we've exhausted the string, return the end position if we're at or past it
-    if utf16_count >= utf16_col {
+    // If we've exhausted the string, return the end position if we're exactly at it
+    if utf16_count == utf16_col {
         Some(line.len())
     } else {
-        // Position is beyond the end of the line
+        // Position is beyond the end or inside a surrogate pair (invalid)
         None
     }
 }

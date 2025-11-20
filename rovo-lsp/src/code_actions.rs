@@ -274,12 +274,12 @@ fn create_fix_status_code_action(
 ) -> CodeActionOrCommand {
     let mut changes = std::collections::HashMap::new();
 
-    // This is a simplified version - in production you'd parse the line more carefully
+    // Range already targets just the status code digits; only swap the numbers
     changes.insert(
         uri.clone(),
         vec![TextEdit {
             range,
-            new_text: format!("/// @response {} ", new_status),
+            new_text: new_status.to_string(),
         }],
     );
 
