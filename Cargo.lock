@@ -824,7 +824,6 @@ dependencies = [
  "once_cell",
  "regex",
  "serde",
- "serde_json",
  "syn",
  "tempfile",
  "tokio",
