@@ -322,6 +322,86 @@ fn extract_tag_at_position(line: &str, char_idx: usize) -> Option<String> {
     }
 }
 
+/// Rename a tag and update all its references in the document
+///
+/// # Arguments
+/// * `content` - The document content
+/// * `position` - Cursor position on a tag annotation
+/// * `new_name` - The new name for the tag
+/// * `uri` - Document URI for constructing edit locations
+///
+/// # Returns
+/// A WorkspaceEdit containing all the rename changes, or None if not on a tag
+pub fn rename_tag(
+    content: &str,
+    position: Position,
+    new_name: &str,
+    uri: Url,
+) -> Option<WorkspaceEdit> {
+    let line_idx = position.line as usize;
+    let lines: Vec<&str> = content.lines().collect();
+
+    if line_idx >= lines.len() {
+        return None;
+    }
+
+    let line = lines[line_idx];
+
+    // Extract tag name from current position
+    let char_idx = utf16_pos_to_byte_index(line, position.character as usize)?;
+    let old_tag_name = extract_tag_at_position(line, char_idx)?;
+
+    // Find all references and create text edits
+    let mut text_edits = Vec::new();
+
+    for (idx, line) in lines.iter().enumerate() {
+        // Look for @tag annotations
+        if let Some(pos) = line.find("@tag") {
+            // Extract the tag name from this line
+            let raw_after_tag = &line[pos + 4..];
+            let trimmed_after_tag = raw_after_tag.trim_start();
+            let tag_in_line = trimmed_after_tag.split_whitespace().next().unwrap_or("");
+
+            if tag_in_line == old_tag_name {
+                // Calculate positions for the tag name (not the @tag keyword)
+                let whitespace = raw_after_tag.len() - trimmed_after_tag.len();
+                let tag_name_start = pos + 4 + whitespace;
+                let tag_name_end = tag_name_start + old_tag_name.len();
+
+                // Convert byte indices to UTF-16 positions
+                let start_utf16 = byte_index_to_utf16_col(line, tag_name_start);
+                let end_utf16 = byte_index_to_utf16_col(line, tag_name_end);
+
+                text_edits.push(TextEdit {
+                    range: Range {
+                        start: Position {
+                            line: idx as u32,
+                            character: start_utf16 as u32,
+                        },
+                        end: Position {
+                            line: idx as u32,
+                            character: end_utf16 as u32,
+                        },
+                    },
+                    new_text: new_name.to_string(),
+                });
+            }
+        }
+    }
+
+    if text_edits.is_empty() {
+        return None;
+    }
+
+    let mut changes = std::collections::HashMap::new();
+    changes.insert(uri, text_edits);
+
+    Some(WorkspaceEdit {
+        changes: Some(changes),
+        ..Default::default()
+    })
+}
+
 fn get_status_code_at_position(line: &str, char_idx: usize) -> Option<String> {
     // Check if we're in a doc comment with @response or @example
     if !line.trim_start().starts_with("///") {

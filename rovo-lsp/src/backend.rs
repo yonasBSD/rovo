@@ -63,6 +63,7 @@ impl LanguageServer for Backend {
                 code_action_provider: Some(CodeActionProviderCapability::Simple(true)),
                 definition_provider: Some(OneOf::Left(true)),
                 references_provider: Some(OneOf::Left(true)),
+                rename_provider: Some(OneOf::Left(true)),
                 ..Default::default()
             },
         })
@@ -258,6 +259,27 @@ impl LanguageServer for Backend {
         Ok(handlers::find_tag_references(
             &content,
             position,
+            params.text_document_position.text_document.uri,
+        ))
+    }
+
+    async fn rename(&self, params: RenameParams) -> Result<Option<WorkspaceEdit>> {
+        let uri = params.text_document_position.text_document.uri.to_string();
+        let position = params.text_document_position.position;
+        let new_name = params.new_name;
+
+        let content = {
+            let document_map = self.document_map.read().await;
+            match document_map.get(&uri) {
+                Some(content) => content.clone(),
+                None => return Ok(None),
+            }
+        };
+
+        Ok(handlers::rename_tag(
+            &content,
+            position,
+            &new_name,
             params.text_document_position.text_document.uri,
         ))
     }
