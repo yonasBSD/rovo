@@ -15,7 +15,11 @@ This guide covers using Rovo with JetBrains IDEs (RustRover, IntelliJ IDEA, CLio
 
 ### Installing the Plugin
 
-#### Option 1: From JetBrains Marketplace (Coming Soon)
+#### Option 1: From JetBrains Marketplace
+
+**Direct link**: https://plugins.jetbrains.com/plugin/29093-rovo-lsp
+
+Or install from your IDE:
 
 1. Open your IDE
 2. Go to **Settings/Preferences → Plugins**

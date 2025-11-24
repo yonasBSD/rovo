@@ -13,6 +13,15 @@ This guide covers using Rovo with Visual Studio Code.
 
 #### Option 1: From VSCode Marketplace (Recommended)
 
+**Marketplace link**: https://marketplace.visualstudio.com/items?itemName=arthurdw.rovo-lsp
+
+**Quick install**: Press `Ctrl+P` (or `Cmd+P` on macOS) and run:
+```
+ext install arthurdw.rovo-lsp
+```
+
+Or install via the Extensions panel:
+
 1. Open VSCode
 2. Go to **Extensions** (Ctrl+Shift+X / Cmd+Shift+X)
 3. Search for "Rovo"
