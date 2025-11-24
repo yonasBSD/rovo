@@ -41,11 +41,11 @@ async fn handler() {
     let actions = code_actions::get_code_actions(content, range_at_line(4), test_uri());
     let titles = get_action_titles(&actions);
 
-    // Should offer to add more annotations
-    assert!(titles.iter().any(|t| t.contains("@response")));
-    assert!(titles.iter().any(|t| t.contains("@tag")));
-    assert!(titles.iter().any(|t| t.contains("@security")));
-    assert!(titles.iter().any(|t| t.contains("@example")));
+    // Should offer to add more annotations (new format)
+    assert!(titles.iter().any(|t| t.contains("Add response") || t.contains("response")));
+    assert!(titles.iter().any(|t| t.contains("@tag") || t.contains("tag")));
+    assert!(titles.iter().any(|t| t.contains("@security") || t.contains("security")));
+    assert!(titles.iter().any(|t| t.contains("Add example") || t.contains("example")));
 }
 
 #[test]
@@ -391,7 +391,7 @@ fn outer() {
     let titles = get_action_titles(&actions);
 
     // Should detect we're in a rovo function even when nested
-    assert!(titles.iter().any(|t| t.contains("@response")));
+    assert!(titles.iter().any(|t| t.contains("Add response") || t.contains("response")));
 }
 
 #[test]
@@ -410,7 +410,7 @@ async fn complex_handler(
     let titles = get_action_titles(&actions);
 
     // Should work with multiline function signatures
-    assert!(titles.iter().any(|t| t.contains("@response")));
+    assert!(titles.iter().any(|t| t.contains("Add response") || t.contains("response")));
 }
 
 #[test]
@@ -426,7 +426,7 @@ async fn generic_handler<T: Serialize>() {
     let titles = get_action_titles(&actions);
 
     // Should work with generic functions
-    assert!(titles.iter().any(|t| t.contains("@response")));
+    assert!(titles.iter().any(|t| t.contains("Add response") || t.contains("response")));
 }
 
 #[test]
@@ -563,9 +563,9 @@ async fn handler() {}
 
     let actions = code_actions::get_code_actions(content, range_at_line(2), test_uri());
 
-    // Find the "Add @response" action
+    // Find the "Add response" action
     let response_action = actions.iter().find_map(|a| match a {
-        CodeActionOrCommand::CodeAction(ca) if ca.title == "Add @response" => Some(ca),
+        CodeActionOrCommand::CodeAction(ca) if ca.title == "Add response" => Some(ca),
         _ => None,
     });
 
@@ -608,4 +608,110 @@ async fn handler() {}
 
     // Should be a REFACTOR, not QUICKFIX
     assert_eq!(rest_action.unwrap().kind, Some(CodeActionKind::REFACTOR));
+}
+
+#[test]
+fn metadata_annotations_maintain_order() {
+    // Test that adding metadata annotations respects the order: @id, @tag, @security, @hidden
+    let content = r#"
+/// Handler
+///
+/// # Metadata
+///
+/// @security bearer
+/// @hidden
+#[rovo]
+async fn handler() {}
+"#;
+
+    let actions = code_actions::get_code_actions(content, range_at_line(8), test_uri());
+
+    // Find the "Add @tag" action
+    let tag_action = actions.iter().find_map(|a| match a {
+        CodeActionOrCommand::CodeAction(ca) if ca.title.contains("Add @tag") => Some(ca),
+        _ => None,
+    });
+
+    assert!(tag_action.is_some());
+
+    // Extract the edit
+    let edit = tag_action.unwrap().edit.as_ref().unwrap();
+    let changes = edit.changes.as_ref().unwrap();
+    let text_edits = changes.values().next().unwrap();
+    let text_edit = &text_edits[0];
+
+    // The @tag should be inserted before @security (after any @id if present)
+    // Line 5 is where @security is, so @tag should be inserted at line 5
+    assert_eq!(text_edit.range.start.line, 5);
+    assert!(text_edit.new_text.contains("@tag"));
+}
+
+#[test]
+fn metadata_annotations_group_same_type() {
+    // Test that adding a second @tag groups it with existing @tag
+    let content = r#"
+/// Handler
+///
+/// # Metadata
+///
+/// @tag users
+/// @security bearer
+#[rovo]
+async fn handler() {}
+"#;
+
+    let actions = code_actions::get_code_actions(content, range_at_line(8), test_uri());
+
+    // Find the "Add @tag" action
+    let tag_action = actions.iter().find_map(|a| match a {
+        CodeActionOrCommand::CodeAction(ca) if ca.title.contains("Add @tag") => Some(ca),
+        _ => None,
+    });
+
+    assert!(tag_action.is_some());
+
+    // Extract the edit
+    let edit = tag_action.unwrap().edit.as_ref().unwrap();
+    let changes = edit.changes.as_ref().unwrap();
+    let text_edits = changes.values().next().unwrap();
+    let text_edit = &text_edits[0];
+
+    // The second @tag should be inserted right after the first @tag (line 6)
+    assert_eq!(text_edit.range.start.line, 6);
+    assert!(text_edit.new_text.contains("@tag"));
+}
+
+#[test]
+fn metadata_id_comes_first() {
+    // Test that @id is inserted at the beginning of metadata
+    let content = r#"
+/// Handler
+///
+/// # Metadata
+///
+/// @tag users
+/// @security bearer
+#[rovo]
+async fn handler() {}
+"#;
+
+    let actions = code_actions::get_code_actions(content, range_at_line(8), test_uri());
+
+    // Find the "Add @id" action
+    let id_action = actions.iter().find_map(|a| match a {
+        CodeActionOrCommand::CodeAction(ca) if ca.title.contains("Add @id") => Some(ca),
+        _ => None,
+    });
+
+    assert!(id_action.is_some());
+
+    // Extract the edit
+    let edit = id_action.unwrap().edit.as_ref().unwrap();
+    let changes = edit.changes.as_ref().unwrap();
+    let text_edits = changes.values().next().unwrap();
+    let text_edit = &text_edits[0];
+
+    // The @id should be inserted before @tag (at line 5)
+    assert_eq!(text_edit.range.start.line, 5);
+    assert!(text_edit.new_text.contains("@id"));
 }

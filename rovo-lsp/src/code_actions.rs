@@ -76,34 +76,49 @@ pub fn get_code_actions(content: &str, range: Range, uri: Url) -> Vec<CodeAction
         .filter(|ann| ann.line >= doc_start_line && ann.line < insert_line)
         .collect();
 
-    // Action 1: Add @response (generic - user fills in details)
-    actions.push(create_insert_annotation_action(
-        "Add @response",
-        "/// @response STATUS TYPE Description",
+    // Action 1: Add response entry
+    actions.push(create_smart_section_action(
+        content,
+        "Add response",
+        "Responses",
+        "200: Json<T> - Description",
+        doc_start_line,
         insert_line,
         uri.clone(),
     ));
 
-    // Action 2: Add @tag
-    actions.push(create_insert_annotation_action(
+    // Action 2: Add example entry
+    actions.push(create_smart_section_action(
+        content,
+        "Add example",
+        "Examples",
+        "200: T::default()",
+        doc_start_line,
+        insert_line,
+        uri.clone(),
+    ));
+
+    // Check if Metadata section exists
+    let (has_metadata, _, _) = find_section(content, "Metadata", doc_start_line, insert_line);
+
+    // Action 3: Add @tag
+    actions.push(create_smart_metadata_action(
+        content,
         "Add @tag",
-        "/// @tag TAG_NAME",
+        "@tag TAG_NAME",
+        has_metadata,
+        doc_start_line,
         insert_line,
         uri.clone(),
     ));
 
-    // Action 3: Add @security
-    actions.push(create_insert_annotation_action(
+    // Action 4: Add @security
+    actions.push(create_smart_metadata_action(
+        content,
         "Add @security",
-        "/// @security SCHEME",
-        insert_line,
-        uri.clone(),
-    ));
-
-    // Action 4: Add @example
-    actions.push(create_insert_annotation_action(
-        "Add @example",
-        "/// @example STATUS {\"key\": \"value\"}",
+        "@security SCHEME",
+        has_metadata,
+        doc_start_line,
         insert_line,
         uri.clone(),
     ));
@@ -114,9 +129,12 @@ pub fn get_code_actions(content: &str, range: Range, uri: Url) -> Vec<CodeAction
         .any(|ann| ann.kind == AnnotationKind::Id);
 
     if !has_id {
-        actions.push(create_insert_annotation_action(
+        actions.push(create_smart_metadata_action(
+            content,
             "Add @id",
-            "/// @id OPERATION_ID",
+            "@id OPERATION_ID",
+            has_metadata,
+            doc_start_line,
             insert_line,
             uri.clone(),
         ));
@@ -128,102 +146,32 @@ pub fn get_code_actions(content: &str, range: Range, uri: Url) -> Vec<CodeAction
         .any(|ann| ann.kind == AnnotationKind::Hidden);
 
     if !has_hidden {
-        actions.push(create_insert_annotation_action(
+        actions.push(create_smart_metadata_action(
+            content,
             "Add @hidden",
-            "/// @hidden",
+            "@hidden",
+            has_metadata,
+            doc_start_line,
             insert_line,
             uri.clone(),
         ));
     }
 
-    // Action 7: Add full REST response set (only if this block has no annotations yet)
-    if filtered_annotations.is_empty() {
-        actions.push(create_insert_multiple_annotations_action(
-            "Add common REST responses",
-            vec![
-                "/// @response 200 Json<T> Success",
-                "/// @response 400 Json<Error> Bad request",
-                "/// @response 404 Json<Error> Not found",
-                "/// @response 500 Json<Error> Internal server error",
-            ],
+    // Action 7: Add full REST response set (only if this block has no responses yet)
+    let has_responses = filtered_annotations
+        .iter()
+        .any(|ann| matches!(ann.kind, AnnotationKind::Response | AnnotationKind::ResponsesSection));
+
+    if !has_responses {
+        actions.push(create_smart_rest_responses_action(
+            content,
+            doc_start_line,
             insert_line,
             uri.clone(),
         ));
     }
 
     actions
-}
-
-fn create_insert_annotation_action(
-    title: &str,
-    text: &str,
-    line: usize,
-    uri: Url,
-) -> CodeActionOrCommand {
-    let mut changes = std::collections::HashMap::new();
-    changes.insert(
-        uri.clone(),
-        vec![TextEdit {
-            range: Range {
-                start: Position {
-                    line: line as u32,
-                    character: 0,
-                },
-                end: Position {
-                    line: line as u32,
-                    character: 0,
-                },
-            },
-            new_text: format!("{}\n", text),
-        }],
-    );
-
-    CodeActionOrCommand::CodeAction(CodeAction {
-        title: title.to_string(),
-        kind: Some(CodeActionKind::REFACTOR),
-        edit: Some(WorkspaceEdit {
-            changes: Some(changes),
-            ..Default::default()
-        }),
-        ..Default::default()
-    })
-}
-
-fn create_insert_multiple_annotations_action(
-    title: &str,
-    lines: Vec<&str>,
-    line: usize,
-    uri: Url,
-) -> CodeActionOrCommand {
-    let mut changes = std::collections::HashMap::new();
-    let text = lines.join("\n") + "\n";
-
-    changes.insert(
-        uri.clone(),
-        vec![TextEdit {
-            range: Range {
-                start: Position {
-                    line: line as u32,
-                    character: 0,
-                },
-                end: Position {
-                    line: line as u32,
-                    character: 0,
-                },
-            },
-            new_text: text,
-        }],
-    );
-
-    CodeActionOrCommand::CodeAction(CodeAction {
-        title: title.to_string(),
-        kind: Some(CodeActionKind::REFACTOR),
-        edit: Some(WorkspaceEdit {
-            changes: Some(changes),
-            ..Default::default()
-        }),
-        ..Default::default()
-    })
 }
 
 /// Get code actions to fix diagnostics
@@ -705,5 +653,518 @@ fn create_init_rovo_action(insert_line: usize, uri: Url) -> CodeActionOrCommand 
             ..Default::default()
         }),
         ..Default::default()
+    })
+}
+
+/// Find a documentation section (# Responses, # Examples, # Metadata) and return its boundaries
+/// Returns: (section_exists, section_start_line, last_content_line)
+fn find_section(content: &str, section_name: &str, doc_start: usize, doc_end: usize) -> (bool, Option<usize>, Option<usize>) {
+    let lines: Vec<&str> = content.lines().collect();
+    let section_header = format!("# {}", section_name);
+
+    let mut section_line = None;
+
+    // Find the section header
+    for i in doc_start..doc_end {
+        if let Some(line) = lines.get(i) {
+            let trimmed = line.trim_start_matches("///").trim();
+            if trimmed == section_header {
+                section_line = Some(i);
+                break;
+            }
+        }
+    }
+
+    let section_start = match section_line {
+        Some(line) => line,
+        None => return (false, None, None),
+    };
+
+    // Find the last line of content in this section
+    let mut last_content_line = section_start;
+    for i in (section_start + 1)..doc_end {
+        if let Some(line) = lines.get(i) {
+            let trimmed = line.trim_start_matches("///").trim();
+
+            // Stop at next section or end of doc comments
+            if trimmed.starts_with("# ") || !line.trim_start().starts_with("///") {
+                break;
+            }
+
+            // Update last content line if this line has content (not just ///)
+            if !trimmed.is_empty() {
+                last_content_line = i;
+            }
+        }
+    }
+
+    (true, Some(section_start), Some(last_content_line))
+}
+
+/// Find the correct insertion point for a new section based on desired order:
+/// # Responses -> # Examples -> # Metadata
+fn find_section_insertion_point(
+    content: &str,
+    section_name: &str,
+    doc_start: usize,
+    doc_end: usize,
+) -> usize {
+    let lines: Vec<&str> = content.lines().collect();
+
+    // Define section order
+    let section_order = ["Responses", "Examples", "Metadata"];
+    let target_index = section_order.iter().position(|&s| s == section_name);
+
+    if target_index.is_none() {
+        return doc_end;
+    }
+    let target_index = target_index.unwrap();
+
+    // Find all section positions
+    let mut section_positions: Vec<(usize, usize)> = Vec::new(); // (order_index, line_number)
+
+    for i in doc_start..doc_end {
+        if let Some(line) = lines.get(i) {
+            let trimmed = line.trim_start_matches("///").trim();
+            if trimmed.starts_with("# ") {
+                let found_section = trimmed.trim_start_matches("# ").trim();
+                if let Some(order_idx) = section_order.iter().position(|&s| s == found_section) {
+                    section_positions.push((order_idx, i));
+                }
+            }
+        }
+    }
+
+    // If no sections exist, insert at doc_end
+    if section_positions.is_empty() {
+        return doc_end;
+    }
+
+    // Find the right position based on order
+    for (order_idx, line_num) in &section_positions {
+        if *order_idx > target_index {
+            // Found a section that should come after ours, insert before it
+            return *line_num;
+        }
+    }
+
+    // If we get here, insert after the last section
+    if let Some((_, _last_section_line)) = section_positions.last() {
+        // Find the end of the last section
+        let (_, _, last_content_line) = find_section(
+            content,
+            section_order[section_positions.last().unwrap().0],
+            doc_start,
+            doc_end,
+        );
+        if let Some(end_line) = last_content_line {
+            return end_line + 1;
+        }
+    }
+
+    doc_end
+}
+
+/// Create a smart action that adds entries to Responses or Examples sections
+/// If section exists, appends to the end. If not, creates the section.
+fn create_smart_section_action(
+    content: &str,
+    title: &str,
+    section_name: &str,
+    entry: &str,
+    doc_start: usize,
+    doc_end: usize,
+    uri: Url,
+) -> CodeActionOrCommand {
+    let (exists, _, last_line) = find_section(content, section_name, doc_start, doc_end);
+
+    let mut changes = std::collections::HashMap::new();
+
+    if exists {
+        // Section exists - append after the last content line
+        let insert_line = last_line.unwrap() + 1;
+        changes.insert(
+            uri.clone(),
+            vec![TextEdit {
+                range: Range {
+                    start: Position {
+                        line: insert_line as u32,
+                        character: 0,
+                    },
+                    end: Position {
+                        line: insert_line as u32,
+                        character: 0,
+                    },
+                },
+                new_text: format!("/// {}\n", entry),
+            }],
+        );
+    } else {
+        // Section doesn't exist - create it with the entry
+        // Find the correct insertion point to maintain order
+        let insert_line = find_section_insertion_point(content, section_name, doc_start, doc_end);
+
+        // Check if the previous line is already empty
+        let lines: Vec<&str> = content.lines().collect();
+        let needs_blank_line = if insert_line > 0 && insert_line <= lines.len() {
+            let prev_line = lines[insert_line - 1].trim();
+            prev_line != "///"
+        } else {
+            true
+        };
+
+        // Check if the next line needs a blank line after
+        let needs_suffix_blank = if insert_line < lines.len() {
+            let next_line = lines[insert_line].trim();
+            !next_line.is_empty() && next_line != "///"
+        } else {
+            false
+        };
+
+        let new_text = match (needs_blank_line, needs_suffix_blank) {
+            (true, true) => format!("///\n/// # {}\n///\n/// {}\n///\n", section_name, entry),
+            (true, false) => format!("///\n/// # {}\n///\n/// {}\n", section_name, entry),
+            (false, true) => format!("/// # {}\n///\n/// {}\n///\n", section_name, entry),
+            (false, false) => format!("/// # {}\n///\n/// {}\n", section_name, entry),
+        };
+
+        changes.insert(
+            uri.clone(),
+            vec![TextEdit {
+                range: Range {
+                    start: Position {
+                        line: insert_line as u32,
+                        character: 0,
+                    },
+                    end: Position {
+                        line: insert_line as u32,
+                        character: 0,
+                    },
+                },
+                new_text,
+            }],
+        );
+    }
+
+    CodeActionOrCommand::CodeAction(CodeAction {
+        title: title.to_string(),
+        kind: Some(CodeActionKind::REFACTOR),
+        edit: Some(WorkspaceEdit {
+            changes: Some(changes),
+            document_changes: None,
+            change_annotations: None,
+        }),
+        diagnostics: None,
+        command: None,
+        is_preferred: None,
+        disabled: None,
+        data: None,
+    })
+}
+
+/// Determine annotation type from annotation string
+fn get_annotation_type(annotation: &str) -> &str {
+    let trimmed = annotation.trim();
+    if trimmed.starts_with("@id") {
+        "id"
+    } else if trimmed.starts_with("@tag") {
+        "tag"
+    } else if trimmed.starts_with("@security") {
+        "security"
+    } else if trimmed.starts_with("@hidden") {
+        "hidden"
+    } else {
+        "unknown"
+    }
+}
+
+/// Find the correct insertion point within a Metadata section based on annotation type
+/// Order: @id -> @tag (grouped) -> @security (grouped) -> @hidden
+fn find_metadata_insertion_point(
+    content: &str,
+    annotation: &str,
+    metadata_start: usize,
+    metadata_end: usize,
+) -> usize {
+    let lines: Vec<&str> = content.lines().collect();
+    let annotation_type = get_annotation_type(annotation);
+
+    // Define annotation order
+    let annotation_order = ["id", "tag", "security", "hidden"];
+    let target_index = annotation_order.iter().position(|&t| t == annotation_type);
+
+    if target_index.is_none() {
+        return metadata_end;
+    }
+    let target_index = target_index.unwrap();
+
+    // Find all annotations in the Metadata section and their positions
+    let mut annotation_positions: Vec<(usize, usize)> = Vec::new(); // (order_index, line_number)
+
+    // Start scanning after the "# Metadata" header
+    for i in (metadata_start + 1)..=metadata_end {
+        if let Some(line) = lines.get(i) {
+            let trimmed = line.trim_start_matches("///").trim();
+
+            // Skip empty lines and section headers
+            if trimmed.is_empty() || trimmed.starts_with("# ") {
+                continue;
+            }
+
+            // Determine the type of this annotation
+            let line_type = get_annotation_type(trimmed);
+            if let Some(order_idx) = annotation_order.iter().position(|&t| t == line_type) {
+                annotation_positions.push((order_idx, i));
+            }
+        }
+    }
+
+    // If no annotations exist in the section, insert right after the header
+    if annotation_positions.is_empty() {
+        // Skip the header line and any empty line after it
+        for i in (metadata_start + 1)..=metadata_end {
+            if let Some(line) = lines.get(i) {
+                let trimmed = line.trim_start_matches("///").trim();
+                if !trimmed.is_empty() {
+                    return i;
+                }
+            }
+        }
+        return metadata_start + 1;
+    }
+
+    // Find the right position based on order
+    let mut last_same_type: Option<usize> = None;
+
+    for (order_idx, line_num) in &annotation_positions {
+        if *order_idx == target_index {
+            // Same type - track the last occurrence
+            last_same_type = Some(*line_num);
+        } else if *order_idx > target_index {
+            // Found a type that comes after ours
+            // If we have same-type annotations, insert after the last one
+            // Otherwise, insert before this one
+            return last_same_type.map(|l| l + 1).unwrap_or(*line_num);
+        }
+    }
+
+    // If we get here, insert after the last annotation (all are before or same type)
+    if let Some(last_line) = last_same_type.or_else(|| annotation_positions.last().map(|(_, l)| *l)) {
+        return last_line + 1;
+    }
+
+    metadata_end
+}
+
+/// Create a smart action for metadata annotations (@tag, @security, @id, @hidden)
+/// If Metadata section exists, appends to it. If not, creates the section.
+fn create_smart_metadata_action(
+    content: &str,
+    title: &str,
+    annotation: &str,
+    has_metadata: bool,
+    doc_start: usize,
+    doc_end: usize,
+    uri: Url,
+) -> CodeActionOrCommand {
+    let mut changes = std::collections::HashMap::new();
+
+    if has_metadata {
+        // Metadata section exists - find where to insert based on annotation type
+        let (_, section_start, section_end) = find_section(content, "Metadata", doc_start, doc_end);
+        let metadata_start = section_start.unwrap();
+        let metadata_end = section_end.unwrap();
+
+        let insert_line = find_metadata_insertion_point(content, annotation, metadata_start, metadata_end);
+
+        changes.insert(
+            uri.clone(),
+            vec![TextEdit {
+                range: Range {
+                    start: Position {
+                        line: insert_line as u32,
+                        character: 0,
+                    },
+                    end: Position {
+                        line: insert_line as u32,
+                        character: 0,
+                    },
+                },
+                new_text: format!("/// {}\n", annotation),
+            }],
+        );
+    } else {
+        // Metadata section doesn't exist - create it
+        // Find the correct insertion point to maintain order
+        let insert_line = find_section_insertion_point(content, "Metadata", doc_start, doc_end);
+
+        // Check if the previous line is already empty
+        let lines: Vec<&str> = content.lines().collect();
+        let needs_blank_line = if insert_line > 0 && insert_line <= lines.len() {
+            let prev_line = lines[insert_line - 1].trim();
+            prev_line != "///"
+        } else {
+            true
+        };
+
+        // Check if the next line needs a blank line after
+        let needs_suffix_blank = if insert_line < lines.len() {
+            let next_line = lines[insert_line].trim();
+            !next_line.is_empty() && next_line != "///"
+        } else {
+            false
+        };
+
+        let new_text = match (needs_blank_line, needs_suffix_blank) {
+            (true, true) => format!("///\n/// # Metadata\n///\n/// {}\n///\n", annotation),
+            (true, false) => format!("///\n/// # Metadata\n///\n/// {}\n", annotation),
+            (false, true) => format!("/// # Metadata\n///\n/// {}\n///\n", annotation),
+            (false, false) => format!("/// # Metadata\n///\n/// {}\n", annotation),
+        };
+
+        changes.insert(
+            uri.clone(),
+            vec![TextEdit {
+                range: Range {
+                    start: Position {
+                        line: insert_line as u32,
+                        character: 0,
+                    },
+                    end: Position {
+                        line: insert_line as u32,
+                        character: 0,
+                    },
+                },
+                new_text,
+            }],
+        );
+    }
+
+    CodeActionOrCommand::CodeAction(CodeAction {
+        title: title.to_string(),
+        kind: Some(CodeActionKind::REFACTOR),
+        edit: Some(WorkspaceEdit {
+            changes: Some(changes),
+            document_changes: None,
+            change_annotations: None,
+        }),
+        diagnostics: None,
+        command: None,
+        is_preferred: None,
+        disabled: None,
+        data: None,
+    })
+}
+
+/// Create action to add common REST responses
+fn create_smart_rest_responses_action(
+    content: &str,
+    doc_start: usize,
+    doc_end: usize,
+    uri: Url,
+) -> CodeActionOrCommand {
+    let (exists, _, last_line) = find_section(content, "Responses", doc_start, doc_end);
+
+    let mut changes = std::collections::HashMap::new();
+
+    let responses = vec![
+        "200: Json<T> - Success",
+        "400: Json<Error> - Bad request",
+        "404: Json<Error> - Not found",
+        "500: Json<Error> - Internal server error",
+    ];
+
+    if exists {
+        // Append to existing section
+        let insert_line = last_line.unwrap() + 1;
+        let text = responses
+            .iter()
+            .map(|r| format!("/// {}", r))
+            .collect::<Vec<_>>()
+            .join("\n")
+            + "\n";
+
+        changes.insert(
+            uri.clone(),
+            vec![TextEdit {
+                range: Range {
+                    start: Position {
+                        line: insert_line as u32,
+                        character: 0,
+                    },
+                    end: Position {
+                        line: insert_line as u32,
+                        character: 0,
+                    },
+                },
+                new_text: text,
+            }],
+        );
+    } else {
+        // Create new section
+        // Find the correct insertion point to maintain order
+        let insert_line = find_section_insertion_point(content, "Responses", doc_start, doc_end);
+
+        // Check if the previous line is already empty
+        let lines: Vec<&str> = content.lines().collect();
+        let needs_blank_line = if insert_line > 0 && insert_line <= lines.len() {
+            let prev_line = lines[insert_line - 1].trim();
+            prev_line != "///"
+        } else {
+            true
+        };
+
+        // Check if the next line needs a blank line after
+        let needs_suffix_blank = if insert_line < lines.len() {
+            let next_line = lines[insert_line].trim();
+            !next_line.is_empty() && next_line != "///"
+        } else {
+            false
+        };
+
+        let responses_text = responses
+            .iter()
+            .map(|r| format!("/// {}", r))
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        let text = match (needs_blank_line, needs_suffix_blank) {
+            (true, true) => format!("///\n/// # Responses\n///\n{}\n///\n", responses_text),
+            (true, false) => format!("///\n/// # Responses\n///\n{}\n", responses_text),
+            (false, true) => format!("/// # Responses\n///\n{}\n///\n", responses_text),
+            (false, false) => format!("/// # Responses\n///\n{}\n", responses_text),
+        };
+
+        changes.insert(
+            uri.clone(),
+            vec![TextEdit {
+                range: Range {
+                    start: Position {
+                        line: insert_line as u32,
+                        character: 0,
+                    },
+                    end: Position {
+                        line: insert_line as u32,
+                        character: 0,
+                    },
+                },
+                new_text: text,
+            }],
+        );
+    }
+
+    CodeActionOrCommand::CodeAction(CodeAction {
+        title: "Add common REST responses".to_string(),
+        kind: Some(CodeActionKind::REFACTOR),
+        edit: Some(WorkspaceEdit {
+            changes: Some(changes),
+            document_changes: None,
+            change_annotations: None,
+        }),
+        diagnostics: None,
+        command: None,
+        is_preferred: None,
+        disabled: None,
+        data: None,
     })
 }

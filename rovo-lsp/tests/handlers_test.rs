@@ -296,8 +296,9 @@ async fn handler() {}
     match completions.unwrap() {
         CompletionResponse::Array(items) => {
             assert!(items.len() > 0);
-            assert!(items.iter().any(|i| i.label == "@response"));
             assert!(items.iter().any(|i| i.label == "@tag"));
+            assert!(items.iter().any(|i| i.label == "@security"));
+            assert!(items.iter().any(|i| i.label == "@hidden"));
         }
         _ => panic!("Expected array of completions"),
     }
@@ -306,14 +307,14 @@ async fn handler() {}
 #[test]
 fn completion_filters_by_prefix() {
     let content = r#"
-/// @res
+/// @sec
 #[rovo]
 async fn handler() {}
 "#;
 
     let position = Position {
         line: 1,
-        character: 8, // After "@res"
+        character: 8, // After "@sec"
     };
 
     let completions = handlers::text_document_completion(content, position);
@@ -321,9 +322,10 @@ async fn handler() {}
 
     match completions.unwrap() {
         CompletionResponse::Array(items) => {
-            assert!(items.iter().any(|i| i.label == "@response"));
+            assert!(items.iter().any(|i| i.label == "@security"));
             // Should not include unrelated completions
             assert!(!items.iter().any(|i| i.label == "@tag"));
+            assert!(!items.iter().any(|i| i.label == "@hidden"));
         }
         _ => panic!("Expected array of completions"),
     }

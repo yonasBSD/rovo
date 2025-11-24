@@ -25,11 +25,39 @@ pub struct Diagnostic {
     pub char_start: Option<usize>,
     /// End character position (optional, defaults to end of line)
     pub char_end: Option<usize>,
+    /// End line for multi-line diagnostics (optional, defaults to same as line)
+    pub end_line: Option<usize>,
+    /// End character position on the end line (optional)
+    pub end_char: Option<usize>,
+}
+
+/// Parse example code and extract helpful error information
+fn parse_example_error(code: &str) -> String {
+    // Try to parse with syn to get detailed error information
+    match syn::parse_str::<syn::Expr>(code) {
+        Ok(_) => String::new(), // Valid, no error
+        Err(e) => {
+            let error_msg = e.to_string();
+
+            // Check for common issues and provide helpful messages
+            if error_msg.contains("unexpected end of input") {
+                "Incomplete expression - missing closing brace or bracket".to_string()
+            } else if error_msg.contains("expected") && error_msg.contains("found `}`") {
+                "Missing field in struct initialization.\nTip: Make sure all required fields are included".to_string()
+            } else if error_msg.contains("expected `,`") {
+                "Missing comma between fields or elements".to_string()
+            } else if error_msg.contains("expected identifier") {
+                "Invalid syntax - check field names and values".to_string()
+            } else {
+                format!("Syntax error: {}", error_msg)
+            }
+        }
+    }
 }
 
 /// Validate Rovo annotations in the given content
 ///
-/// Checks for issues like invalid HTTP status codes and returns a list of diagnostics.
+/// Checks for issues like invalid HTTP status codes and example syntax errors.
 ///
 /// # Arguments
 /// * `content` - The source code content to validate
@@ -68,6 +96,52 @@ pub fn validate_annotations(content: &str) -> Vec<Diagnostic> {
                             severity: DiagnosticSeverity::Error,
                             char_start,
                             char_end,
+                            end_line: None,
+                            end_char: None,
+                        });
+                    }
+                }
+            }
+            AnnotationKind::Example => {
+                // Validate example syntax
+                if let Some(example_code) = ann.example_value {
+                    let error_msg = parse_example_error(&example_code);
+                    if !error_msg.is_empty() {
+                        // Find the start and end lines for multi-line examples
+                        let start_line = ann.line;
+                        let mut end_line = start_line;
+
+                        // Scan forward to find the end of the example
+                        for i in (start_line + 1)..lines.len() {
+                            let line = lines[i].trim();
+                            if line.starts_with("///") {
+                                let content = line.trim_start_matches("///").trim();
+                                // Check if this line is part of the example
+                                if content.is_empty() || content.starts_with("#") || content.starts_with("@") {
+                                    break;
+                                }
+                                // Update end_line for each content line we find
+                                end_line = i;
+                            } else {
+                                break;
+                            }
+                        }
+
+                        let line_content = lines.get(start_line).unwrap_or(&"");
+                        let char_start = line_content.find(&ann.status.unwrap_or(200).to_string());
+
+                        diagnostics.push(Diagnostic {
+                            line: start_line,
+                            message: format!("Invalid example expression.\n{}", error_msg),
+                            severity: DiagnosticSeverity::Error,
+                            char_start,
+                            char_end: None,
+                            end_line: if end_line > start_line { Some(end_line) } else { None },
+                            end_char: if end_line > start_line {
+                                lines.get(end_line).map(|l| l.len())
+                            } else {
+                                None
+                            },
                         });
                     }
                 }

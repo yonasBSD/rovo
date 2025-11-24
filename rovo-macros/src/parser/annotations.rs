@@ -70,6 +70,42 @@ macro_rules! parse_status_code {
     }};
 }
 
+/// Parse response from pre-parsed parts (for Rust-style sections)
+pub fn parse_response_from_parts(
+    response_type_str: &str,
+    status_code: u16,
+    description: &str,
+    span: Span,
+) -> Result<ResponseInfo, ParseError> {
+    validate_status_code(status_code, span)?;
+
+    if description.trim().is_empty() {
+        return Err(ParseError::with_span(
+            "Missing description for response\n\
+             help: add a description after the response type\n\
+             note: format is '<status>: <type> - <description>'",
+            span,
+        ));
+    }
+
+    let response_type: TokenStream = response_type_str.parse().map_err(|_| {
+        ParseError::with_span(
+            format!(
+                "Invalid response type '{response_type_str}'\n\
+                 help: response type must be valid Rust syntax\n\
+                 note: common types: Json<T>, (), (StatusCode, Json<T>)"
+            ),
+            span,
+        )
+    })?;
+
+    Ok(ResponseInfo {
+        status_code,
+        response_type,
+        description: description.to_string(),
+    })
+}
+
 /// Parse @response annotation
 pub fn parse_response(trimmed: &str, span: Span) -> Result<ResponseInfo, ParseError> {
     let parts: Vec<&str> = trimmed.splitn(4, ' ').collect();
@@ -137,6 +173,59 @@ pub fn parse_response(trimmed: &str, span: Span) -> Result<ResponseInfo, ParseEr
     })
 }
 
+/// Parse example from pre-parsed parts (for Rust-style sections)
+pub fn parse_example_from_parts(
+    status_code: u16,
+    example_code_str: &str,
+    span: Span,
+) -> Result<ExampleInfo, ParseError> {
+    validate_status_code(status_code, span)?;
+
+    if example_code_str.trim().is_empty() {
+        return Err(ParseError::with_span(
+            "Empty example expression\n\
+             help: provide a valid Rust expression\n\
+             note: format is '<status>: <rust_expression>'",
+            span,
+        ));
+    }
+
+    // Unescape quotes that come from doc comments
+    let unescaped = example_code_str.replace("\\\"", "\"");
+
+    // First parse as TokenStream
+    let example_code: TokenStream = unescaped.parse().map_err(|_| {
+        ParseError::with_span(
+            format!(
+                "Invalid example expression '{example_code_str}'\n\
+                 help: expression must be valid Rust syntax\n\
+                 note: examples: 'User::default()', 'User {{ id: 1, name: \"Alice\".into() }}', 'vec![1, 2, 3]'"
+            ),
+            span,
+        )
+    })?;
+
+    // Validate it's a valid expression using syn
+    syn::parse2::<syn::Expr>(example_code.clone()).map_err(|e| {
+        ParseError::with_span(
+            format!(
+                "Invalid example expression '{example_code_str}'\n\
+                 help: expression must be valid Rust syntax\n\
+                 note: parse error: {}\n\
+                 note: examples: 'User::default()', 'User {{ id: 1, name: \"Alice\".into() }}', 'vec![1, 2, 3]'",
+                e
+            ),
+            span,
+        )
+    })?;
+
+    Ok(ExampleInfo {
+        status_code,
+        example_code,
+        span,
+    })
+}
+
 /// Parse @example annotation
 pub fn parse_example(trimmed: &str, span: Span) -> Result<ExampleInfo, ParseError> {
     let parts: Vec<&str> = trimmed.splitn(3, ' ').collect();
@@ -165,6 +254,7 @@ pub fn parse_example(trimmed: &str, span: Span) -> Result<ExampleInfo, ParseErro
         ));
     }
 
+    // First parse as TokenStream
     let example_code: TokenStream = example_code_str.parse().map_err(|_| {
         ParseError::with_span(
             format!(
@@ -176,9 +266,24 @@ pub fn parse_example(trimmed: &str, span: Span) -> Result<ExampleInfo, ParseErro
         )
     })?;
 
+    // Validate it's a valid expression using syn
+    syn::parse2::<syn::Expr>(example_code.clone()).map_err(|e| {
+        ParseError::with_span(
+            format!(
+                "Invalid example expression '{example_code_str}'\n\
+                 help: expression must be valid Rust syntax\n\
+                 note: parse error: {}\n\
+                 note: examples: 'User::default()', 'User {{ id: 1, name: \"Alice\".into() }}', 'vec![1, 2, 3]'",
+                e
+            ),
+            span,
+        )
+    })?;
+
     Ok(ExampleInfo {
         status_code,
         example_code,
+        span,
     })
 }
 

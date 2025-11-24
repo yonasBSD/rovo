@@ -304,9 +304,15 @@ fn test_deprecated_endpoint() {
 #[test]
 fn test_security_annotation() {
     /// Protected endpoint
+    ///
+    /// # Responses
+    ///
+    /// 200: Json<Vec<Item>> - Protected response
+    ///
+    /// # Metadata
+    ///
     /// @tag items
     /// @security bearer_auth
-    /// @response 200 Json<Vec<Item>> Protected response
     #[rovo]
     async fn protected_items(State(_state): State<AppState>) -> Json<Vec<Item>> {
         Json(vec![])
@@ -345,9 +351,15 @@ fn test_security_annotation() {
 #[test]
 fn test_custom_operation_id() {
     /// Get items
+    ///
+    /// # Responses
+    ///
+    /// 200: Json<Vec<Item>> - Items list
+    ///
+    /// # Metadata
+    ///
     /// @tag items
     /// @id getItemsList
-    /// @response 200 Json<Vec<Item>> Items list
     #[rovo]
     async fn custom_id_items(State(_state): State<AppState>) -> Json<Vec<Item>> {
         Json(vec![])
@@ -377,6 +389,9 @@ fn test_custom_operation_id() {
 #[test]
 fn test_hidden_endpoint() {
     /// Hidden endpoint
+    ///
+    /// # Metadata
+    ///
     /// @hidden
     #[rovo]
     async fn hidden_endpoint(State(_state): State<AppState>) -> StatusCode {
@@ -410,10 +425,16 @@ fn test_hidden_endpoint() {
 #[test]
 fn test_multiple_tags() {
     /// Multi-tagged endpoint
+    ///
+    /// # Responses
+    ///
+    /// 200: () - Success
+    ///
+    /// # Metadata
+    ///
     /// @tag items
     /// @tag admin
     /// @tag deprecated
-    /// @response 200 () Success
     #[rovo]
     async fn multi_tag_endpoint(State(_state): State<AppState>) -> StatusCode {
         StatusCode::OK

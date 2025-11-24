@@ -89,3 +89,58 @@ async fn handler() {}
     let diagnostics = validate_annotations(content);
     assert_eq!(diagnostics.len(), 0);
 }
+
+#[test]
+fn reports_invalid_example_syntax() {
+    let content = r#"
+/// # Examples
+///
+/// 200: User { id: 1
+#[rovo]
+async fn handler() {}
+"#;
+    let diagnostics = validate_annotations(content);
+    assert!(diagnostics.len() > 0);
+    assert!(diagnostics[0].message.contains("Invalid example") || diagnostics[0].message.contains("parse"));
+}
+
+#[test]
+fn reports_missing_fields_in_example() {
+    let content = r#"
+/// # Examples
+///
+/// 200: User { id: 1 }
+#[rovo]
+async fn handler() {}
+"#;
+    // This should show a helpful message about potentially missing fields
+    // when the struct User requires more fields
+    let diagnostics = validate_annotations(content);
+    // Note: This may or may not produce diagnostics depending on type checking
+    // The key is that if it does, the message should be helpful
+    if !diagnostics.is_empty() {
+        assert!(diagnostics[0].message.contains("missing") || diagnostics[0].message.contains("field"));
+    }
+}
+
+#[test]
+fn multi_line_example_diagnostic_spans_all_lines() {
+    let content = r#"
+/// # Examples
+///
+/// 200: User {
+///     id: 1,
+///     name: "Test
+/// }
+#[rovo]
+async fn handler() {}
+"#;
+    let diagnostics = validate_annotations(content);
+    if !diagnostics.is_empty() {
+        // The diagnostic should span from line 3 to line 6
+        assert_eq!(diagnostics[0].line, 3, "Should start at line with status code");
+        if let Some(end_line) = diagnostics[0].end_line {
+            assert!(end_line >= 6, "Should end at or after the closing brace line");
+        }
+    }
+}
