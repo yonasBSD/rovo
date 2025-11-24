@@ -1,4 +1,14 @@
-# Rovo
+<div align="center">
+  <img src=".docs/rovo-banner.png" alt="Rovo - OpenAPI for Axum, the easy way" width="600">
+
+  [![Crates.io](https://img.shields.io/crates/v/rovo.svg)](https://crates.io/crates/rovo)
+  [![Documentation](https://docs.rs/rovo/badge.svg)](https://docs.rs/rovo)
+  [![CI](https://github.com/a-line/rovo/workflows/CI/badge.svg)](https://github.com/a-line/rovo/actions)
+  [![codecov](https://codecov.io/gh/a-line/rovo/branch/main/graph/badge.svg)](https://codecov.io/gh/a-line/rovo)
+  [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+</div>
+
+---
 
 OpenAPI documentation for Axum using doc comments and macros.
 
@@ -81,6 +91,8 @@ tokio = { version = "1", features = ["full"] }
 ```
 
 > **Note:** Rovo re-exports `aide` and `schemars`, so you don't need to add them as separate dependencies. Access them via `rovo::aide` and `rovo::schemars`.
+
+For detailed API documentation, see [docs.rs/rovo](https://docs.rs/rovo).
 
 ### Feature Flags
 
