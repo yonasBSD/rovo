@@ -3,8 +3,8 @@
 
   [![Crates.io](https://img.shields.io/crates/v/rovo.svg)](https://crates.io/crates/rovo)
   [![Documentation](https://docs.rs/rovo/badge.svg)](https://docs.rs/rovo)
-  [![CI](https://github.com/a-line/rovo/workflows/CI/badge.svg)](https://github.com/a-line/rovo/actions)
-  [![codecov](https://codecov.io/gh/a-line/rovo/branch/main/graph/badge.svg)](https://codecov.io/gh/a-line/rovo)
+  [![CI](https://github.com/arthurdw/rovo/actions/workflows/ci.yml/badge.svg)](https://github.com/arthurdw/rovo/actions)
+  [![codecov](https://codecov.io/gh/arthurdw/rovo/branch/main/graph/badge.svg)](https://codecov.io/gh/arthurdw/rovo)
   [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 </div>
 
