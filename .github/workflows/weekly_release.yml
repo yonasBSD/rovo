@@ -169,7 +169,8 @@ jobs:
         run: |
           cd jetbrains-plugin
           sed -i 's/^version = ".*"/version = "'"${{ env.VERSION }}"'"/' build.gradle.kts
-          git add build.gradle.kts
+          sed -i 's/cargo install rovo-lsp --version [0-9.]\+/cargo install rovo-lsp --version '"${{ env.VERSION }}"'/' src/main/resources/META-INF/plugin.xml
+          git add build.gradle.kts src/main/resources/META-INF/plugin.xml
 
       - name: Commit version bump
         if: steps.check_release.outputs.needs_release == 'true'

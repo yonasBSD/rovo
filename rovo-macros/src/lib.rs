@@ -34,6 +34,7 @@ use parser::parse_rovo_function;
 /// - `@security <scheme_name>` - Add security requirements (can be used multiple times)
 /// - `@id <operation_id>` - Set a custom operation ID (defaults to function name)
 /// - `@hidden` - Hide this operation from documentation
+/// - `@rovo-ignore` - Stop processing annotations after this point
 ///
 /// Additionally, the Rust `#[deprecated]` attribute is automatically detected
 /// and will mark the operation as deprecated in the `OpenAPI` spec.

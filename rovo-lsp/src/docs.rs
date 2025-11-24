@@ -168,8 +168,35 @@ Useful for:
 - Endpoints not ready for public documentation
 "#
         }
+        "@rovo-ignore" => {
+            r#"# @rovo-ignore
 
-        _ => "Unknown annotation - use one of: @response, @tag, @security, @example, @id, @hidden",
+Stop processing Rovo annotations after this point.
+
+## Syntax
+```rust
+/// @rovo-ignore
+```
+
+## Example
+```rust
+/// @tag users
+/// @response 200 Json<User> User found
+/// @rovo-ignore
+/// This is regular documentation that won't be processed.
+/// You can write @anything here without causing errors.
+#[rovo]
+async fn get_user() -> Json<User> { ... }
+```
+
+Useful for:
+- Adding detailed documentation after annotations
+- Writing examples that use @ symbols
+- Preventing annotation-like text from being parsed
+"#
+        }
+
+        _ => "Unknown annotation - use one of: @response, @tag, @security, @example, @id, @hidden, @rovo-ignore",
     }
 }
 
@@ -188,6 +215,7 @@ pub fn get_annotation_summary(annotation: &str) -> &'static str {
         "@example" => "Provide an example response for a specific status code",
         "@id" => "Set a custom operation ID for this endpoint",
         "@hidden" => "Hide this endpoint from the generated API documentation",
+        "@rovo-ignore" => "Stop processing Rovo annotations after this point",
         _ => "Unknown annotation",
     }
 }

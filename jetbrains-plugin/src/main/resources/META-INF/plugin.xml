@@ -4,21 +4,35 @@
     <vendor email="dev@arthurdw.com" url="https://github.com/Arthurdw/rovo">Rovo</vendor>
 
     <description><![CDATA[
-    <p>Syntax highlighting for Rovo framework annotations in Rust.</p>
+    <p>Language Server Protocol (LSP) support for Rovo framework annotations in Rust. Write cleaner, more maintainable OpenAPI-style documentation directly in your Rust code with intelligent IDE support.</p>
 
     <h3>Features</h3>
     <ul>
-        <li><strong>Context-aware syntax highlighting</strong> for Rovo annotations</li>
-        <li>Highlights annotation keywords (@response, @tag, @security, @example, @id, @hidden)</li>
-        <li>Highlights HTTP status codes (200, 404, 500, etc.)</li>
-        <li>Highlights security schemes (bearer, basic, apiKey, oauth2)</li>
-        <li>Only activates near #[rovo] attributes to avoid conflicts</li>
+        <li><strong>Smart completions</strong> - Auto-complete for Rovo annotations with helpful snippets</li>
+        <li><strong>Hover documentation</strong> - Detailed information for annotations, status codes, and security schemes</li>
+        <li><strong>Real-time diagnostics</strong> - Instant feedback on syntax errors and invalid annotations</li>
+        <li><strong>Code actions</strong> - Quick fixes for common issues</li>
+        <li><strong>Navigation</strong> - Go to definition, find usages, and rename support for tags</li>
+        <li><strong>Syntax highlighting</strong> - Context-aware highlighting for annotations, status codes, and security schemes</li>
     </ul>
 
-    <h3>LSP Support</h3>
-    <p>For additional features (completions, hover, code actions), install <code>rovo-lsp</code>:</p>
-    <pre>cargo install rovo-lsp</pre>
-    <p>Then configure it as an external LSP server in your IDE settings.</p>
+    <h3>Requirements</h3>
+    <p>Install the matching version of <code>rovo-lsp</code>:</p>
+    <pre>cargo install rovo-lsp --version 0.1.6</pre>
+    <p>The plugin will automatically detect the LSP server from common locations or your system PATH.</p>
+
+    <h3>Usage Example</h3>
+    <pre>
+/// Get user by ID
+///
+/// @tag users
+/// @security bearer
+/// @response 200 Json&lt;User&gt; Successfully retrieved user
+/// @response 404 Json&lt;Error&gt; User not found
+#[rovo]
+async fn get_user(id: i64) -&gt; impl IntoApiResponse {
+    // Implementation
+}</pre>
     ]]></description>
 
     <change-notes><![CDATA[

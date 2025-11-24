@@ -275,8 +275,9 @@ async function installServer(outputChannel: vscode.OutputChannel): Promise<boole
                     return false;
                 }
 
-                // Install rovo-lsp
-                const { stdout, stderr } = await execAsync('cargo install rovo-lsp', {
+                // Install rovo-lsp with matching version
+                const extensionVersion = require('../../../package.json').version;
+                const { stdout, stderr } = await execAsync(`cargo install rovo-lsp --version ${extensionVersion}`, {
                     maxBuffer: 10 * 1024 * 1024 // 10MB buffer for cargo output
                 });
 

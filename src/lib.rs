@@ -58,6 +58,7 @@
 //! - `@security <scheme>` - Specify security requirements
 //! - `@id <operation_id>` - Set custom operation ID
 //! - `@hidden` - Hide endpoint from documentation
+//! - `@rovo-ignore` - Stop processing annotations after this point
 
 pub use rovo_macros::rovo;
 
