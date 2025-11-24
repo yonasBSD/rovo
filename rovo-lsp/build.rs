@@ -26,12 +26,7 @@ fn main() {
         let mut entries: Vec<_> = fs::read_dir(&annotations_dir)
             .unwrap()
             .filter_map(|e| e.ok())
-            .filter(|e| {
-                e.path()
-                    .extension()
-                    .map(|ext| ext == "md")
-                    .unwrap_or(false)
-            })
+            .filter(|e| e.path().extension().map(|ext| ext == "md").unwrap_or(false))
             .collect();
 
         entries.sort_by_key(|e| e.path());
@@ -42,12 +37,7 @@ fn main() {
             let annotation_name = format!("@{}", filename);
 
             writeln!(f, "        \"{}\" => {{", annotation_name).unwrap();
-            writeln!(
-                f,
-                "            include_str!(\"{}\").trim()",
-                path.display()
-            )
-            .unwrap();
+            writeln!(f, "            include_str!(\"{}\").trim()", path.display()).unwrap();
             writeln!(f, "        }}").unwrap();
 
             // Tell Cargo to rerun if the file changes
@@ -76,12 +66,7 @@ fn main() {
         let mut entries: Vec<_> = fs::read_dir(&annotations_dir)
             .unwrap()
             .filter_map(|e| e.ok())
-            .filter(|e| {
-                e.path()
-                    .extension()
-                    .map(|ext| ext == "md")
-                    .unwrap_or(false)
-            })
+            .filter(|e| e.path().extension().map(|ext| ext == "md").unwrap_or(false))
             .collect();
 
         entries.sort_by_key(|e| e.path());
@@ -117,12 +102,7 @@ fn main() {
         let mut entries: Vec<_> = fs::read_dir(&status_codes_dir)
             .unwrap()
             .filter_map(|e| e.ok())
-            .filter(|e| {
-                e.path()
-                    .extension()
-                    .map(|ext| ext == "md")
-                    .unwrap_or(false)
-            })
+            .filter(|e| e.path().extension().map(|ext| ext == "md").unwrap_or(false))
             .collect();
 
         entries.sort_by_key(|e| e.path());
@@ -149,14 +129,8 @@ fn main() {
     writeln!(f, "}}").unwrap();
 
     // Tell Cargo to rerun if the directories change
-    println!(
-        "cargo:rerun-if-changed={}",
-        annotations_dir.display()
-    );
-    println!(
-        "cargo:rerun-if-changed={}",
-        status_codes_dir.display()
-    );
+    println!("cargo:rerun-if-changed={}", annotations_dir.display());
+    println!("cargo:rerun-if-changed={}", status_codes_dir.display());
 }
 
 fn extract_summary(content: &str) -> String {
