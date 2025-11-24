@@ -37,7 +37,10 @@ This guide covers using Rovo with JetBrains IDEs (RustRover, IntelliJ IDEA, CLio
    - Select `jetbrains-plugin/build/distributions/rovo-jetbrains-plugin-*.zip`
    - Restart the IDE
 
-3. On first use, the plugin will automatically install the `rovo-lsp` server from crates.io
+3. Install the `rovo-lsp` server:
+   ```bash
+   cargo install rovo-lsp
+   ```
 
 ## Features
 
@@ -113,24 +116,19 @@ async fn get_user(id: i32) -> Json<User> {
 
 ## Configuration
 
-### Auto-Installation
+### LSP Server Installation
 
-On first use, the plugin will:
-1. Check if `rovo-lsp` is already installed
-2. If not found, automatically run `cargo install rovo-lsp`
-3. Show a notification when installation completes
-
-This process may take a few minutes on first run.
-
-### Manual Installation
-
-If you prefer to install manually:
+The plugin requires `rovo-lsp` to be installed:
 
 ```bash
 cargo install rovo-lsp
 ```
 
-The plugin will detect the manually installed binary.
+The plugin will automatically detect the LSP server from common locations:
+- `~/.cargo/bin/rovo-lsp`
+- `/usr/local/bin/rovo-lsp`
+- `/usr/bin/rovo-lsp`
+- Or any location in your system PATH
 
 ### Troubleshooting
 

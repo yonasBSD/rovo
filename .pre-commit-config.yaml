@@ -72,6 +72,30 @@ repos:
         pass_filenames: false
         stages: [commit]
 
+      - id: vscode-lint
+        name: VSCode extension lint
+        entry: bash -c 'cd vscode-rovo && npm run lint'
+        language: system
+        files: ^vscode-rovo/.*\.(ts|js)$
+        pass_filenames: false
+        stages: [commit]
+
+      - id: vscode-typecheck
+        name: VSCode extension type check
+        entry: bash -c 'cd vscode-rovo && npm test'
+        language: system
+        files: ^vscode-rovo/.*\.(ts|js)$
+        pass_filenames: false
+        stages: [commit]
+
+      - id: vscode-compile
+        name: VSCode extension compile
+        entry: bash -c 'cd vscode-rovo && npm run compile'
+        language: system
+        files: ^vscode-rovo/.*\.(ts|js)$
+        pass_filenames: false
+        stages: [commit]
+
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.5.0
     hooks:

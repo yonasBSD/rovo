@@ -43,18 +43,15 @@ See [JETBRAINS.md](../JETBRAINS.md) for installation and usage instructions.
 ```
 src/main/
 ├── kotlin/com/rovo/lsp/
-│   ├── RovoLspServerFactory.kt     # LSP server factory
-│   ├── RovoLspServerDescriptor.kt  # Server configuration
-│   ├── RovoLspInstaller.kt         # Auto-installation logic
-│   └── RovoNotifications.kt        # User notifications
+│   ├── RovoLanguageServer.kt       # LSP server factory and connection provider
+│   └── RovoAnnotator.kt            # Syntax highlighting annotator
 └── resources/META-INF/
     └── plugin.xml                   # Plugin manifest
 ```
 
 ## Features
 
-- Auto-installs `rovo-lsp` from crates.io on first use
-- Detects existing `rovo-lsp` installation
+- Detects `rovo-lsp` installation from common locations and PATH
 - Context-aware activation (only in Rust files with Cargo.toml)
 - Error handling and user notifications
 - Compatible with RustRover, IntelliJ IDEA, and CLion
