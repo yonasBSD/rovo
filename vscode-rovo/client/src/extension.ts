@@ -179,7 +179,7 @@ export async function activate(context: vscode.ExtensionContext) {
             if (autoInstall) {
                 const shouldInstall = await promptInstall();
                 if (shouldInstall) {
-                    const installed = await installServer(outputChannel);
+                    const installed = await installServer(outputChannel, context);
                     if (!installed) {
                         vscode.window.showErrorMessage(
                             'Failed to install rovo-lsp. Please install manually: cargo install rovo-lsp'
@@ -254,7 +254,7 @@ async function promptInstall(): Promise<boolean> {
     return choice === 'Yes';
 }
 
-async function installServer(outputChannel: vscode.OutputChannel): Promise<boolean> {
+async function installServer(outputChannel: vscode.OutputChannel, context: vscode.ExtensionContext): Promise<boolean> {
     return vscode.window.withProgress(
         {
             location: vscode.ProgressLocation.Notification,
