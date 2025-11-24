@@ -299,7 +299,6 @@ async fn delete_todo(
     State(_app): State<AppState>,
     Path(_id): Path<TodoId>,
 ) -> impl IntoApiResponse {
-    
 }
 
 // Test 14: Complex nested response types
