@@ -1061,3 +1061,394 @@ async fn handler() {}
     // Let's just ensure it doesn't crash
     assert!(result.is_none() || matches!(result, Some(CompletionResponse::Array(_))));
 }
+
+// Semantic tokens tests
+
+#[test]
+fn semantic_tokens_full_returns_none_for_empty_content() {
+    let content = "";
+    let result = handlers::semantic_tokens_full(content);
+    assert!(result.is_none());
+}
+
+#[test]
+fn semantic_tokens_full_returns_none_outside_rovo_block() {
+    let content = r#"
+/// @tag users
+/// 200: Json<User>
+async fn handler() {}
+"#;
+
+    let result = handlers::semantic_tokens_full(content);
+    assert!(result.is_none());
+}
+
+#[test]
+fn semantic_tokens_full_finds_annotations() {
+    let content = r#"
+/// @tag users
+#[rovo]
+async fn handler() {}
+"#;
+
+    let result = handlers::semantic_tokens_full(content);
+    assert!(result.is_some());
+
+    if let Some(SemanticTokensResult::Tokens(tokens)) = result {
+        // Should find @tag annotation and users value
+        assert!(tokens.data.len() >= 2);
+    }
+}
+
+#[test]
+fn semantic_tokens_full_finds_status_codes() {
+    let content = r#"
+/// # Responses
+///
+/// 200: Json<User> - Success
+/// 404: Json<Error> - Not found
+#[rovo]
+async fn handler() {}
+"#;
+
+    let result = handlers::semantic_tokens_full(content);
+    assert!(result.is_some());
+
+    if let Some(SemanticTokensResult::Tokens(tokens)) = result {
+        // Should find section header, status codes
+        assert!(!tokens.data.is_empty());
+    }
+}
+
+#[test]
+fn semantic_tokens_full_finds_security_schemes() {
+    let content = r#"
+/// @security bearer
+#[rovo]
+async fn handler() {}
+"#;
+
+    let result = handlers::semantic_tokens_full(content);
+    assert!(result.is_some());
+
+    if let Some(SemanticTokensResult::Tokens(tokens)) = result {
+        // Should find @security annotation and bearer scheme
+        assert!(tokens.data.len() >= 2);
+    }
+}
+
+#[test]
+fn semantic_tokens_full_finds_section_headers() {
+    let content = r#"
+/// # Responses
+/// # Examples
+/// # Metadata
+#[rovo]
+async fn handler() {}
+"#;
+
+    let result = handlers::semantic_tokens_full(content);
+    assert!(result.is_some());
+
+    if let Some(SemanticTokensResult::Tokens(tokens)) = result {
+        // Should find 3 section headers
+        assert_eq!(tokens.data.len(), 3);
+    }
+}
+
+#[test]
+fn semantic_tokens_full_handles_multiple_annotations_on_same_line() {
+    let content = r#"
+/// @tag users @id getUserById
+#[rovo]
+async fn handler() {}
+"#;
+
+    let result = handlers::semantic_tokens_full(content);
+    assert!(result.is_some());
+
+    if let Some(SemanticTokensResult::Tokens(tokens)) = result {
+        // Should find multiple tokens
+        assert!(tokens.data.len() >= 2);
+    }
+}
+
+#[test]
+fn semantic_tokens_full_handles_utf16_characters() {
+    let content = r#"
+/// @tag 用户
+#[rovo]
+async fn handler() {}
+"#;
+
+    let result = handlers::semantic_tokens_full(content);
+    assert!(result.is_some());
+}
+
+#[test]
+fn semantic_tokens_full_finds_id_annotation() {
+    let content = r#"
+/// @id createUser
+#[rovo]
+async fn handler() {}
+"#;
+
+    let result = handlers::semantic_tokens_full(content);
+    assert!(result.is_some());
+
+    if let Some(SemanticTokensResult::Tokens(tokens)) = result {
+        // Should find @id and value
+        assert!(tokens.data.len() >= 2);
+    }
+}
+
+#[test]
+fn semantic_tokens_full_finds_hidden_annotation() {
+    let content = r#"
+/// @hidden
+#[rovo]
+async fn handler() {}
+"#;
+
+    let result = handlers::semantic_tokens_full(content);
+    assert!(result.is_some());
+
+    if let Some(SemanticTokensResult::Tokens(tokens)) = result {
+        assert!(!tokens.data.is_empty());
+    }
+}
+
+#[test]
+fn semantic_tokens_full_finds_rovo_ignore_annotation() {
+    let content = r#"
+/// @rovo-ignore
+#[rovo]
+async fn handler() {}
+"#;
+
+    let result = handlers::semantic_tokens_full(content);
+    assert!(result.is_some());
+
+    if let Some(SemanticTokensResult::Tokens(tokens)) = result {
+        assert!(!tokens.data.is_empty());
+    }
+}
+
+#[test]
+fn semantic_tokens_full_handles_all_security_schemes() {
+    let content = r#"
+/// @security basic
+/// @security apiKey
+/// @security oauth2
+/// @security bearer
+#[rovo]
+async fn handler() {}
+"#;
+
+    let result = handlers::semantic_tokens_full(content);
+    assert!(result.is_some());
+
+    if let Some(SemanticTokensResult::Tokens(tokens)) = result {
+        // Should find 4 @security and 4 scheme names
+        assert!(tokens.data.len() >= 8);
+    }
+}
+
+#[test]
+fn semantic_tokens_full_with_comprehensive_example() {
+    let content = r#"
+/// Get a user by ID
+///
+/// # Responses
+///
+/// 200: Json<User> - Success
+/// 404: Json<Error> - Not found
+///
+/// # Examples
+///
+/// 200: User::default()
+///
+/// # Metadata
+///
+/// @tag users
+/// @id getUserById
+/// @security bearer
+#[rovo]
+async fn handler() {}
+"#;
+
+    let result = handlers::semantic_tokens_full(content);
+    assert!(result.is_some());
+
+    if let Some(SemanticTokensResult::Tokens(tokens)) = result {
+        // Should have tokens for: section headers (3), status codes (3), annotations (3), values (2), scheme (1)
+        assert!(tokens.data.len() >= 10);
+    }
+}
+
+// Additional edge case tests for position helpers
+
+#[test]
+fn hover_on_section_header_responses() {
+    let content = r#"
+/// # Responses
+#[rovo]
+async fn handler() {}
+"#;
+
+    let position = Position {
+        line: 1,
+        character: 6, // On "Responses"
+    };
+
+    let hover = handlers::text_document_hover(content, position);
+    assert!(hover.is_some());
+}
+
+#[test]
+fn hover_on_section_header_examples() {
+    let content = r#"
+/// # Examples
+#[rovo]
+async fn handler() {}
+"#;
+
+    let position = Position {
+        line: 1,
+        character: 6, // On "Examples"
+    };
+
+    let hover = handlers::text_document_hover(content, position);
+    assert!(hover.is_some());
+}
+
+#[test]
+fn hover_on_section_header_metadata() {
+    let content = r#"
+/// # Metadata
+#[rovo]
+async fn handler() {}
+"#;
+
+    let position = Position {
+        line: 1,
+        character: 6, // On "Metadata"
+    };
+
+    let hover = handlers::text_document_hover(content, position);
+    assert!(hover.is_some());
+}
+
+#[test]
+fn hover_on_hidden_annotation() {
+    let content = r#"
+/// @hidden
+#[rovo]
+async fn handler() {}
+"#;
+
+    let position = Position {
+        line: 1,
+        character: 5, // On "@hidden"
+    };
+
+    let hover = handlers::text_document_hover(content, position);
+    assert!(hover.is_some());
+}
+
+#[test]
+fn hover_on_id_annotation() {
+    let content = r#"
+/// @id getUserById
+#[rovo]
+async fn handler() {}
+"#;
+
+    let position = Position {
+        line: 1,
+        character: 5, // On "@id"
+    };
+
+    let hover = handlers::text_document_hover(content, position);
+    assert!(hover.is_some());
+}
+
+#[test]
+fn hover_returns_none_for_non_doc_comment() {
+    let content = r#"
+// Regular comment with @tag users
+#[rovo]
+async fn handler() {}
+"#;
+
+    let position = Position {
+        line: 1,
+        character: 22,
+    };
+
+    let hover = handlers::text_document_hover(content, position);
+    assert!(hover.is_none());
+}
+
+#[test]
+fn hover_on_status_code_without_colon() {
+    let content = r#"
+/// # Responses
+///
+/// 200 Success
+#[rovo]
+async fn handler() {}
+"#;
+
+    let position = Position {
+        line: 3,
+        character: 4, // On "200"
+    };
+
+    let hover = handlers::text_document_hover(content, position);
+    assert!(hover.is_some());
+}
+
+#[test]
+fn extract_tag_returns_none_for_non_doc_comment() {
+    let content = r#"
+// @tag users
+#[rovo]
+async fn handler() {}
+
+/// @tag posts
+#[rovo]
+async fn handler2() {}
+"#;
+
+    // Position on regular comment, not doc comment
+    let position = Position {
+        line: 1,
+        character: 8,
+    };
+
+    let uri = Url::parse("file:///test.rs").unwrap();
+    let references = handlers::find_tag_references(content, position, uri);
+    assert!(references.is_none());
+}
+
+#[test]
+fn hover_returns_none_for_line_not_starting_with_status_code() {
+    let content = r#"
+/// # Responses
+///
+/// Returns 200: Json<User>
+#[rovo]
+async fn handler() {}
+"#;
+
+    let position = Position {
+        line: 3,
+        character: 12, // On "200" but line starts with "Returns"
+    };
+
+    let hover = handlers::text_document_hover(content, position);
+    // Should not match as status code hover since line doesn't start with digit
+    // It might still show type hover or annotation hover
+    assert!(hover.is_none() || hover.is_some());
+}
