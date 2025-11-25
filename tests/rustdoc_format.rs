@@ -1,4 +1,5 @@
 use axum::extract::{Path, State};
+use axum::http::StatusCode;
 use axum::response::Json;
 use rovo::aide::axum::IntoApiResponse;
 use rovo::schemars::JsonSchema;
@@ -284,7 +285,7 @@ async fn experimental_endpoint(State(_app): State<AppState>) -> impl IntoApiResp
     Json("experimental")
 }
 
-// Test 13: Empty unit response
+// Test 13: 204 No Content response
 /// Delete a todo item.
 ///
 /// # Responses
@@ -300,6 +301,7 @@ async fn delete_todo(
     State(_app): State<AppState>,
     Path(_id): Path<TodoId>,
 ) -> impl IntoApiResponse {
+    StatusCode::NO_CONTENT
 }
 
 // Test 14: Complex nested response types

@@ -116,10 +116,20 @@ pub fn validate_annotations(content: &str) -> Vec<Diagnostic> {
                             let line = lines[i].trim();
                             if line.starts_with("///") {
                                 let content = line.trim_start_matches("///").trim();
-                                // Check if this line is part of the example
+
+                                // Check if this line starts a new example entry (STATUS: ...)
+                                let starts_new_example = content
+                                    .chars()
+                                    .next()
+                                    .map(|c| c.is_ascii_digit())
+                                    .unwrap_or(false)
+                                    && content.contains(':');
+
+                                // Check if this line is part of the current example
                                 if content.is_empty()
-                                    || content.starts_with("#")
-                                    || content.starts_with("@")
+                                    || content.starts_with('#')
+                                    || content.starts_with('@')
+                                    || starts_new_example
                                 {
                                     break;
                                 }

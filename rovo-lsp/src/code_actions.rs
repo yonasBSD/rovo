@@ -686,8 +686,26 @@ fn create_init_rovo_action(insert_line: usize, uri: Url) -> CodeActionOrCommand 
     })
 }
 
+/// Find the effective doc_end, respecting @rovo-ignore boundary
+/// Everything after @rovo-ignore should be ignored per the documentation spec
+fn find_effective_doc_end(content: &str, doc_start: usize, doc_end: usize) -> usize {
+    let lines: Vec<&str> = content.lines().collect();
+
+    for i in doc_start..doc_end {
+        if let Some(line) = lines.get(i) {
+            let trimmed = line.trim_start_matches("///").trim();
+            if trimmed.starts_with("@rovo-ignore") {
+                return i;
+            }
+        }
+    }
+
+    doc_end
+}
+
 /// Find a documentation section (# Responses, # Examples, # Metadata) and return its boundaries
 /// Returns: (section_exists, section_start_line, last_content_line)
+/// Note: Respects @rovo-ignore - sections after it are not found
 fn find_section(
     content: &str,
     section_name: &str,
@@ -697,10 +715,13 @@ fn find_section(
     let lines: Vec<&str> = content.lines().collect();
     let section_header = format!("# {}", section_name);
 
+    // Respect @rovo-ignore boundary
+    let effective_end = find_effective_doc_end(content, doc_start, doc_end);
+
     let mut section_line = None;
 
-    // Find the section header
-    for i in doc_start..doc_end {
+    // Find the section header (only before @rovo-ignore)
+    for i in doc_start..effective_end {
         if let Some(line) = lines.get(i) {
             let trimmed = line.trim_start_matches("///").trim();
             if trimmed == section_header {
@@ -715,9 +736,9 @@ fn find_section(
         None => return (false, None, None),
     };
 
-    // Find the last line of content in this section
+    // Find the last line of content in this section (respecting @rovo-ignore)
     let mut last_content_line = section_start;
-    for i in (section_start + 1)..doc_end {
+    for i in (section_start + 1)..effective_end {
         if let Some(line) = lines.get(i) {
             let trimmed = line.trim_start_matches("///").trim();
 
@@ -738,6 +759,7 @@ fn find_section(
 
 /// Find the correct insertion point for a new section based on desired order:
 /// # Responses -> # Examples -> # Metadata
+/// Note: Respects @rovo-ignore - insertions will happen before @rovo-ignore if present
 fn find_section_insertion_point(
     content: &str,
     section_name: &str,
@@ -746,19 +768,22 @@ fn find_section_insertion_point(
 ) -> usize {
     let lines: Vec<&str> = content.lines().collect();
 
+    // Respect @rovo-ignore boundary
+    let effective_end = find_effective_doc_end(content, doc_start, doc_end);
+
     // Define section order
     let section_order = ["Responses", "Examples", "Metadata"];
     let target_index = section_order.iter().position(|&s| s == section_name);
 
     if target_index.is_none() {
-        return doc_end;
+        return effective_end;
     }
     let target_index = target_index.unwrap();
 
-    // Find all section positions
+    // Find all section positions (only before @rovo-ignore)
     let mut section_positions: Vec<(usize, usize)> = Vec::new(); // (order_index, line_number)
 
-    for i in doc_start..doc_end {
+    for i in doc_start..effective_end {
         if let Some(line) = lines.get(i) {
             let trimmed = line.trim_start_matches("///").trim();
             if trimmed.starts_with("# ") {
@@ -770,9 +795,9 @@ fn find_section_insertion_point(
         }
     }
 
-    // If no sections exist, insert at doc_end
+    // If no sections exist, insert at effective_end
     if section_positions.is_empty() {
-        return doc_end;
+        return effective_end;
     }
 
     // Find the right position based on order
@@ -790,14 +815,14 @@ fn find_section_insertion_point(
             content,
             section_order[section_positions.last().unwrap().0],
             doc_start,
-            doc_end,
+            effective_end,
         );
         if let Some(end_line) = last_content_line {
             return end_line + 1;
         }
     }
 
-    doc_end
+    effective_end
 }
 
 /// Create a smart action that adds entries to Responses or Examples sections

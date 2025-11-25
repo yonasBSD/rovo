@@ -126,6 +126,7 @@ pub fn parse_annotations(content: &str) -> Vec<Annotation> {
         // First, collect all doc comment lines above #[rovo]
         let mut doc_lines = Vec::new();
         let mut i = rovo_pos;
+        let mut found_rovo_ignore = false;
 
         while i > 0 {
             i -= 1;
@@ -143,13 +144,21 @@ pub fn parse_annotations(content: &str) -> Vec<Annotation> {
 
             let doc_content = line.trim_start_matches("///").trim();
 
-            // Check for @rovo-ignore directive - stops scanning this doc block
+            // Check for @rovo-ignore directive - everything AFTER this line (closer to #[rovo])
+            // should be ignored, so we clear doc_lines and continue collecting lines BEFORE it
             if doc_content.starts_with("@rovo-ignore") {
-                break;
+                found_rovo_ignore = true;
+                doc_lines.clear();
+                continue;
             }
 
+            // Only add lines if we haven't hit @rovo-ignore yet, or if we're past it
+            // Since we scan backwards, lines collected after clearing are BEFORE @rovo-ignore
             doc_lines.push((i, line));
         }
+
+        // If we found @rovo-ignore, doc_lines now contains only lines BEFORE it
+        let _ = found_rovo_ignore; // Silence unused warning
 
         // Reverse to process in forward order
         doc_lines.reverse();
@@ -191,10 +200,15 @@ pub fn parse_annotations(content: &str) -> Vec<Annotation> {
             if let Some(section) = current_section {
                 match section {
                     "responses" => {
-                        if let Some(ann) = parse_response_line(doc_content, line_num) {
+                        // Try to parse a multi-line response
+                        if let Some((ann, lines_consumed)) =
+                            parse_multiline_response(&doc_lines[idx..])
+                        {
                             annotations.push(ann);
+                            idx += lines_consumed;
+                        } else {
+                            idx += 1;
                         }
-                        idx += 1;
                     }
                     "examples" => {
                         // Try to parse a multi-line example
@@ -230,28 +244,79 @@ pub fn parse_annotations(content: &str) -> Vec<Annotation> {
     annotations
 }
 
-/// Parse a response line from # Responses section
-/// Format: STATUS: TYPE - DESCRIPTION
-fn parse_response_line(content: &str, line_num: usize) -> Option<Annotation> {
-    if let Some(colon_pos) = content.find(':') {
-        let before_colon = &content[..colon_pos].trim();
-        if before_colon.chars().all(|c| c.is_ascii_digit()) {
-            let status: u16 = before_colon.parse().ok()?;
-            let after_colon = content[colon_pos + 1..].trim();
-
-            if let Some(dash_pos) = after_colon.find(" - ") {
-                let response_type = after_colon[..dash_pos].trim().to_string();
-                let description = after_colon[dash_pos + 3..].trim().to_string();
-
-                let mut ann = Annotation::new(AnnotationKind::Response, line_num);
-                ann.status = Some(status);
-                ann.response_type = Some(response_type);
-                ann.description = Some(description);
-                return Some(ann);
-            }
-        }
+/// Parse a potentially multi-line response from # Responses section
+/// Format: STATUS: TYPE - DESCRIPTION (description can continue on following lines)
+/// Returns the annotation and the number of lines consumed
+fn parse_multiline_response(doc_lines: &[(usize, &str)]) -> Option<(Annotation, usize)> {
+    if doc_lines.is_empty() {
+        return None;
     }
-    None
+
+    let (line_num, first_line) = doc_lines[0];
+    let content = first_line.trim_start_matches("///").trim();
+
+    // Check if this line starts with STATUS:
+    let colon_pos = content.find(':')?;
+    let before_colon = content[..colon_pos].trim();
+    if !before_colon.chars().all(|c| c.is_ascii_digit()) {
+        return None;
+    }
+    let status: u16 = before_colon.parse().ok()?;
+
+    let after_colon = content[colon_pos + 1..].trim();
+
+    // Find the " - " separator for description
+    let dash_pos = after_colon.find(" - ")?;
+    let response_type = after_colon[..dash_pos].trim().to_string();
+    let mut description_parts = vec![after_colon[dash_pos + 3..].trim()];
+
+    let mut lines_consumed = 1;
+
+    // Continue collecting description lines
+    // A continuation line:
+    // - Does NOT start with a digit (new response entry)
+    // - Does NOT start with # (new section)
+    // - Does NOT start with @ (annotation)
+    // - Is NOT empty
+    while lines_consumed < doc_lines.len() {
+        let (_, next_line) = doc_lines[lines_consumed];
+        let next_content = next_line.trim_start_matches("///").trim();
+
+        // Empty line ends the description
+        if next_content.is_empty() {
+            break;
+        }
+
+        // New section or annotation ends the description
+        if next_content.starts_with('#') || next_content.starts_with('@') {
+            break;
+        }
+
+        // New response entry (starts with digit followed by colon) ends the description
+        let starts_new_response = next_content
+            .chars()
+            .next()
+            .map(|c| c.is_ascii_digit())
+            .unwrap_or(false)
+            && next_content.contains(':');
+
+        if starts_new_response {
+            break;
+        }
+
+        // This is a continuation line
+        description_parts.push(next_content);
+        lines_consumed += 1;
+    }
+
+    let description = description_parts.join(" ");
+
+    let mut ann = Annotation::new(AnnotationKind::Response, line_num);
+    ann.status = Some(status);
+    ann.response_type = Some(response_type);
+    ann.description = Some(description);
+
+    Some((ann, lines_consumed))
 }
 
 /// Parse a potentially multi-line example from # Examples section
@@ -640,5 +705,148 @@ async fn handler() {}
             .iter()
             .any(|a| a.kind == AnnotationKind::Response));
         assert!(annotations.iter().any(|a| a.kind == AnnotationKind::Tag));
+    }
+
+    #[test]
+    fn test_rovo_ignore_stops_parsing_after() {
+        // @rovo-ignore should stop processing everything AFTER it (closer to #[rovo])
+        // Content BEFORE @rovo-ignore should still be parsed
+        let content = r#"
+/// Get user information.
+///
+/// # Responses
+///
+/// 200: Json<User> - Success
+///
+/// # Metadata
+///
+/// @tag users
+///
+/// @rovo-ignore
+///
+/// @invalid_annotation this won't cause errors
+/// @tag ignored_tag
+#[rovo]
+async fn handler() {}
+"#;
+        let annotations = parse_annotations(content);
+
+        // Should have ResponsesSection, Response, MetadataSection, Tag (users) - all BEFORE @rovo-ignore
+        assert!(
+            annotations
+                .iter()
+                .any(|a| a.kind == AnnotationKind::ResponsesSection),
+            "Should have ResponsesSection"
+        );
+        assert!(
+            annotations
+                .iter()
+                .any(|a| a.kind == AnnotationKind::Response),
+            "Should have Response"
+        );
+        assert!(
+            annotations
+                .iter()
+                .any(|a| a.kind == AnnotationKind::MetadataSection),
+            "Should have MetadataSection"
+        );
+
+        // Check that we have the "users" tag but NOT "ignored_tag"
+        let tags: Vec<_> = annotations
+            .iter()
+            .filter(|a| a.kind == AnnotationKind::Tag)
+            .collect();
+        assert_eq!(tags.len(), 1, "Should have exactly one tag");
+        assert_eq!(
+            tags[0].tag_name,
+            Some("users".to_string()),
+            "Tag should be 'users'"
+        );
+    }
+
+    #[test]
+    fn test_rovo_ignore_ignores_everything_after() {
+        // Everything AFTER @rovo-ignore should be completely ignored
+        let content = r#"
+/// @rovo-ignore
+///
+/// # Responses
+///
+/// 200: Json<User> - This should be ignored
+///
+/// @tag ignored
+#[rovo]
+async fn handler() {}
+"#;
+        let annotations = parse_annotations(content);
+
+        // Should have nothing - everything is after @rovo-ignore
+        assert!(
+            annotations.is_empty(),
+            "All annotations should be ignored when after @rovo-ignore"
+        );
+    }
+
+    #[test]
+    fn test_parse_multiline_response_descriptions() {
+        // Multi-line response descriptions should be joined with spaces
+        let content = r#"
+/// # Responses
+///
+/// 200: Json<User> - Successfully retrieved the user from the
+///      database with all associated metadata
+/// 404: () - User not found in the database or has been
+///      deleted by another user
+#[rovo]
+async fn handler() {}
+"#;
+        let annotations = parse_annotations(content);
+
+        let responses: Vec<_> = annotations
+            .iter()
+            .filter(|a| a.kind == AnnotationKind::Response)
+            .collect();
+
+        assert_eq!(responses.len(), 2, "Should have exactly 2 responses");
+
+        assert_eq!(responses[0].status, Some(200));
+        assert_eq!(responses[0].response_type, Some("Json<User>".to_string()));
+        assert_eq!(
+            responses[0].description,
+            Some(
+                "Successfully retrieved the user from the database with all associated metadata"
+                    .to_string()
+            )
+        );
+
+        assert_eq!(responses[1].status, Some(404));
+        assert_eq!(responses[1].response_type, Some("()".to_string()));
+        assert_eq!(
+            responses[1].description,
+            Some("User not found in the database or has been deleted by another user".to_string())
+        );
+    }
+
+    #[test]
+    fn test_parse_single_line_response() {
+        // Single-line responses should still work
+        let content = r#"
+/// # Responses
+///
+/// 200: Json<User> - User found
+/// 404: () - Not found
+#[rovo]
+async fn handler() {}
+"#;
+        let annotations = parse_annotations(content);
+
+        let responses: Vec<_> = annotations
+            .iter()
+            .filter(|a| a.kind == AnnotationKind::Response)
+            .collect();
+
+        assert_eq!(responses.len(), 2);
+        assert_eq!(responses[0].description, Some("User found".to_string()));
+        assert_eq!(responses[1].description, Some("Not found".to_string()));
     }
 }
