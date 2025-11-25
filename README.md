@@ -31,8 +31,9 @@ Built on [aide](https://github.com/tamasfe/aide), Rovo provides a declarative ap
 ## Quick Start
 
 ```rust
-use rovo::{rovo, Router, routing::get, schemars::JsonSchema};
-use rovo::aide::{axum::IntoApiResponse, openapi::OpenApi};
+use rovo::{rovo, Router, routing::get};
+use rovo::{schemars, schemars::JsonSchema};
+use rovo::{aide, aide::{axum::IntoApiResponse, openapi::OpenApi}};
 use axum::{extract::State, response::Json};
 use serde::Serialize;
 
