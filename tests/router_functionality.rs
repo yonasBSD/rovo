@@ -1,7 +1,7 @@
+use rovo::aide::openapi::OpenApi;
 use rovo::extract::State;
 use rovo::http::StatusCode;
 use rovo::response::{IntoResponse, Json, Response};
-use rovo::aide::openapi::OpenApi;
 use rovo::routing::{delete, get, patch};
 use rovo::schemars::JsonSchema;
 use rovo::{rovo, Router};

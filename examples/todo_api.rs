@@ -1,9 +1,9 @@
+use rovo::aide::{axum::IntoApiResponse, openapi::OpenApi};
 use rovo::{
     extract::{Path, State},
     http::StatusCode,
     response::{IntoResponse, Json},
 };
-use rovo::aide::{axum::IntoApiResponse, openapi::OpenApi};
 use rovo::{rovo, schemars::JsonSchema, Router};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

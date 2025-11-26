@@ -1,8 +1,8 @@
 #![allow(deprecated)]
 
+use rovo::aide::axum::IntoApiResponse;
 use rovo::extract::State;
 use rovo::response::Json;
-use rovo::aide::axum::IntoApiResponse;
 use rovo::schemars::JsonSchema;
 use rovo::{routing::get, rovo, Router};
 use serde::Serialize;

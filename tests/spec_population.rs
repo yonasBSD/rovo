@@ -1,9 +1,9 @@
 #![allow(clippy::needless_update)]
 
+use rovo::aide::openapi::OpenApi;
 use rovo::extract::{Path, State};
 use rovo::http::StatusCode;
 use rovo::response::{IntoResponse, Json, Response};
-use rovo::aide::openapi::OpenApi;
 use rovo::routing::get;
 use rovo::schemars::JsonSchema;
 use rovo::{rovo, Router};
@@ -364,8 +364,8 @@ fn test_spec_contains_multiline_example_with_default() {
 
 #[test]
 fn test_spec_contains_request_body() {
-    use rovo::response::Json;
     use rovo::aide::axum::IntoApiResponse;
+    use rovo::response::Json;
 
     #[derive(Deserialize, JsonSchema)]
     struct CreateUserRequest {
