@@ -22,7 +22,7 @@
 //! ```no_run
 //! use rovo::{Router, rovo, routing::get, schemars::JsonSchema, aide::axum::IntoApiResponse};
 //! use rovo::aide::openapi::OpenApi;
-//! use axum::{extract::Path, response::Json};
+//! use rovo::{extract::Path, response::Json};
 //! use serde::Serialize;
 //!
 //! #[derive(Serialize, JsonSchema)]
@@ -102,6 +102,38 @@ pub use rovo_macros::rovo;
 pub use aide;
 pub use schemars;
 
+// Re-export axum modules for convenience, so users don't need axum as a direct dependency
+/// Re-export of axum's extract module for request data extraction.
+///
+/// This provides access to all axum extractors like `State`, `Path`, `Query`, `Json`, etc.
+///
+/// # Example
+/// ```no_run
+/// use rovo::extract::{State, Path};
+/// ```
+pub use ::axum::extract;
+
+/// Re-export of axum's response module for building HTTP responses.
+///
+/// This provides access to response types like `Json`, `Html`, `Redirect`, and the
+/// `IntoResponse` trait.
+///
+/// # Example
+/// ```no_run
+/// use rovo::response::{Json, IntoResponse};
+/// ```
+pub use ::axum::response;
+
+/// Re-export of axum's http module for HTTP primitives.
+///
+/// This provides access to types like `StatusCode`, `Method`, `Uri`, `HeaderMap`, etc.
+///
+/// # Example
+/// ```no_run
+/// use rovo::http::StatusCode;
+/// ```
+pub use ::axum::http;
+
 use ::axum::{response::IntoResponse, Extension};
 use aide::axum::ApiRouter as AideApiRouter;
 use aide::openapi::OpenApi;
@@ -115,7 +147,7 @@ use aide::openapi::OpenApi;
 /// ```no_run
 /// use rovo::{Router, rovo, routing::get, aide::axum::IntoApiResponse};
 /// use rovo::aide::openapi::OpenApi;
-/// use axum::response::Json;
+/// use rovo::response::Json;
 ///
 /// #[rovo]
 /// async fn documented_handler() -> impl IntoApiResponse {
@@ -421,7 +453,7 @@ pub trait IntoApiMethodRouter<S = ()> {
 /// # Example
 /// ```no_run
 /// use rovo::{Router, rovo, routing::{get, post, patch, delete}, aide::axum::IntoApiResponse};
-/// use axum::response::Json;
+/// use rovo::response::Json;
 ///
 /// #[rovo]
 /// async fn list_items() -> impl IntoApiResponse { Json(()) }
@@ -520,7 +552,7 @@ impl<S> From<ApiMethodRouter<S>> for aide::axum::routing::ApiMethodRouter<S> {
 /// # Example
 /// ```no_run
 /// use rovo::{Router, rovo, routing::{get, post, patch, delete}, aide::axum::IntoApiResponse};
-/// use axum::response::Json;
+/// use rovo::response::Json;
 ///
 /// #[rovo]
 /// async fn list_items() -> impl IntoApiResponse { Json(()) }

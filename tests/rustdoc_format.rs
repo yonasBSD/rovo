@@ -1,6 +1,6 @@
-use axum::extract::{Path, State};
-use axum::http::StatusCode;
-use axum::response::Json;
+use rovo::extract::{Path, State};
+use rovo::http::StatusCode;
+use rovo::response::Json;
 use rovo::aide::axum::IntoApiResponse;
 use rovo::schemars::JsonSchema;
 use rovo::{routing::get, rovo, Router};

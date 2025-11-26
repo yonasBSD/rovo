@@ -1,4 +1,4 @@
-use axum::response::Json;
+use rovo::response::Json;
 use rovo::aide::axum::IntoApiResponse;
 use rovo::rovo;
 

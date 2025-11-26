@@ -1,8 +1,8 @@
 #![allow(clippy::needless_update)]
 
-use axum::extract::{Path, State};
-use axum::http::StatusCode;
-use axum::response::{IntoResponse, Json, Response};
+use rovo::extract::{Path, State};
+use rovo::http::StatusCode;
+use rovo::response::{IntoResponse, Json, Response};
 use rovo::aide::openapi::OpenApi;
 use rovo::routing::get;
 use rovo::schemars::JsonSchema;
@@ -364,7 +364,7 @@ fn test_spec_contains_multiline_example_with_default() {
 
 #[test]
 fn test_spec_contains_request_body() {
-    use axum::response::Json;
+    use rovo::response::Json;
     use rovo::aide::axum::IntoApiResponse;
 
     #[derive(Deserialize, JsonSchema)]

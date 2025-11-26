@@ -104,8 +104,9 @@ Get instant feedback on:
 ## Usage Example
 
 ```rust
-use rovo::prelude::*;
-use axum::{extract::State, response::Json};
+use rovo::{rovo, Router, routing::get};
+use rovo::{extract::State, response::Json};
+use rovo::aide::axum::IntoApiResponse;
 
 /// Get user by ID.
 ///

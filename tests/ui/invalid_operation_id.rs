@@ -1,6 +1,6 @@
 #![allow(unused_imports)]
 use rovo::aide::axum::IntoApiResponse;
-use axum::response::Json;
+use rovo::response::Json;
 use rovo::rovo;
 
 /// Test handler with invalid operation ID

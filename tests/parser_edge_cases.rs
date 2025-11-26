@@ -1,7 +1,7 @@
 #![allow(deprecated)]
 
-use axum::extract::State;
-use axum::response::Json;
+use rovo::extract::State;
+use rovo::response::Json;
 use rovo::aide::axum::IntoApiResponse;
 use rovo::schemars::JsonSchema;
 use rovo::{routing::get, rovo, Router};
