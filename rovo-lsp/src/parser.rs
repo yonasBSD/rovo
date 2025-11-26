@@ -126,8 +126,6 @@ pub fn parse_annotations(content: &str) -> Vec<Annotation> {
         // First, collect all doc comment lines above #[rovo]
         let mut doc_lines = Vec::new();
         let mut i = rovo_pos;
-        let mut found_rovo_ignore = false;
-
         while i > 0 {
             i -= 1;
             let line = lines[i].trim();
@@ -147,7 +145,6 @@ pub fn parse_annotations(content: &str) -> Vec<Annotation> {
             // Check for @rovo-ignore directive - everything AFTER this line (closer to #[rovo])
             // should be ignored, so we clear doc_lines and continue collecting lines BEFORE it
             if doc_content.starts_with("@rovo-ignore") {
-                found_rovo_ignore = true;
                 doc_lines.clear();
                 continue;
             }
@@ -156,9 +153,6 @@ pub fn parse_annotations(content: &str) -> Vec<Annotation> {
             // Since we scan backwards, lines collected after clearing are BEFORE @rovo-ignore
             doc_lines.push((i, line));
         }
-
-        // If we found @rovo-ignore, doc_lines now contains only lines BEFORE it
-        let _ = found_rovo_ignore; // Silence unused warning
 
         // Reverse to process in forward order
         doc_lines.reverse();

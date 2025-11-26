@@ -703,6 +703,25 @@ fn find_effective_doc_end(content: &str, doc_start: usize, doc_end: usize) -> us
     doc_end
 }
 
+/// Determine blank line requirements around a section insertion
+/// Returns (needs_prefix_blank, needs_suffix_blank)
+fn check_blank_line_requirements(lines: &[&str], insert_line: usize) -> (bool, bool) {
+    let needs_blank_line = if insert_line > 0 && insert_line <= lines.len() {
+        lines[insert_line - 1].trim() != "///"
+    } else {
+        true
+    };
+
+    let needs_suffix_blank = if insert_line < lines.len() {
+        let next = lines[insert_line].trim();
+        !next.is_empty() && next != "///"
+    } else {
+        false
+    };
+
+    (needs_blank_line, needs_suffix_blank)
+}
+
 /// Find a documentation section (# Responses, # Examples, # Metadata) and return its boundaries
 /// Returns: (section_exists, section_start_line, last_content_line)
 /// Note: Respects @rovo-ignore - sections after it are not found
@@ -773,12 +792,9 @@ fn find_section_insertion_point(
 
     // Define section order
     let section_order = ["Responses", "Examples", "Metadata"];
-    let target_index = section_order.iter().position(|&s| s == section_name);
-
-    if target_index.is_none() {
+    let Some(target_index) = section_order.iter().position(|&s| s == section_name) else {
         return effective_end;
-    }
-    let target_index = target_index.unwrap();
+    };
 
     // Find all section positions (only before @rovo-ignore)
     let mut section_positions: Vec<(usize, usize)> = Vec::new(); // (order_index, line_number)
@@ -864,22 +880,9 @@ fn create_smart_section_action(
         // Find the correct insertion point to maintain order
         let insert_line = find_section_insertion_point(content, section_name, doc_start, doc_end);
 
-        // Check if the previous line is already empty
         let lines: Vec<&str> = content.lines().collect();
-        let needs_blank_line = if insert_line > 0 && insert_line <= lines.len() {
-            let prev_line = lines[insert_line - 1].trim();
-            prev_line != "///"
-        } else {
-            true
-        };
-
-        // Check if the next line needs a blank line after
-        let needs_suffix_blank = if insert_line < lines.len() {
-            let next_line = lines[insert_line].trim();
-            !next_line.is_empty() && next_line != "///"
-        } else {
-            false
-        };
+        let (needs_blank_line, needs_suffix_blank) =
+            check_blank_line_requirements(&lines, insert_line);
 
         let new_text = match (needs_blank_line, needs_suffix_blank) {
             (true, true) => format!("///\n/// # {}\n///\n/// {}\n///\n", section_name, entry),
@@ -951,12 +954,9 @@ fn find_metadata_insertion_point(
 
     // Define annotation order
     let annotation_order = ["id", "tag", "security", "hidden"];
-    let target_index = annotation_order.iter().position(|&t| t == annotation_type);
-
-    if target_index.is_none() {
+    let Some(target_index) = annotation_order.iter().position(|&t| t == annotation_type) else {
         return metadata_end;
-    }
-    let target_index = target_index.unwrap();
+    };
 
     // Find all annotations in the Metadata section and their positions
     let mut annotation_positions: Vec<(usize, usize)> = Vec::new(); // (order_index, line_number)
@@ -1032,9 +1032,20 @@ fn create_smart_metadata_action(
 
     if has_metadata {
         // Metadata section exists - find where to insert based on annotation type
-        let (_, section_start, section_end) = find_section(content, "Metadata", doc_start, doc_end);
-        let metadata_start = section_start.unwrap();
-        let metadata_end = section_end.unwrap();
+        let (_, Some(metadata_start), Some(metadata_end)) =
+            find_section(content, "Metadata", doc_start, doc_end)
+        else {
+            // Fallback - shouldn't happen if has_metadata is true
+            return create_smart_section_action(
+                content,
+                title,
+                "Metadata",
+                annotation,
+                doc_start,
+                doc_end,
+                uri,
+            );
+        };
 
         let insert_line =
             find_metadata_insertion_point(content, annotation, metadata_start, metadata_end);
@@ -1060,22 +1071,9 @@ fn create_smart_metadata_action(
         // Find the correct insertion point to maintain order
         let insert_line = find_section_insertion_point(content, "Metadata", doc_start, doc_end);
 
-        // Check if the previous line is already empty
         let lines: Vec<&str> = content.lines().collect();
-        let needs_blank_line = if insert_line > 0 && insert_line <= lines.len() {
-            let prev_line = lines[insert_line - 1].trim();
-            prev_line != "///"
-        } else {
-            true
-        };
-
-        // Check if the next line needs a blank line after
-        let needs_suffix_blank = if insert_line < lines.len() {
-            let next_line = lines[insert_line].trim();
-            !next_line.is_empty() && next_line != "///"
-        } else {
-            false
-        };
+        let (needs_blank_line, needs_suffix_blank) =
+            check_blank_line_requirements(&lines, insert_line);
 
         let new_text = match (needs_blank_line, needs_suffix_blank) {
             (true, true) => format!("///\n/// # Metadata\n///\n/// {}\n///\n", annotation),
@@ -1167,22 +1165,9 @@ fn create_smart_rest_responses_action(
         // Find the correct insertion point to maintain order
         let insert_line = find_section_insertion_point(content, "Responses", doc_start, doc_end);
 
-        // Check if the previous line is already empty
         let lines: Vec<&str> = content.lines().collect();
-        let needs_blank_line = if insert_line > 0 && insert_line <= lines.len() {
-            let prev_line = lines[insert_line - 1].trim();
-            prev_line != "///"
-        } else {
-            true
-        };
-
-        // Check if the next line needs a blank line after
-        let needs_suffix_blank = if insert_line < lines.len() {
-            let next_line = lines[insert_line].trim();
-            !next_line.is_empty() && next_line != "///"
-        } else {
-            false
-        };
+        let (needs_blank_line, needs_suffix_blank) =
+            check_blank_line_requirements(&lines, insert_line);
 
         let responses_text = responses
             .iter()

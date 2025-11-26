@@ -141,7 +141,8 @@ pub fn validate_annotations(content: &str) -> Vec<Diagnostic> {
                         }
 
                         let line_content = lines.get(start_line).unwrap_or(&"");
-                        let char_start = line_content.find(&ann.status.unwrap_or(200).to_string());
+                        let char_start =
+                            ann.status.and_then(|s| line_content.find(&s.to_string()));
 
                         diagnostics.push(Diagnostic {
                             line: start_line,
