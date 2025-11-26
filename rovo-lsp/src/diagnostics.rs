@@ -38,18 +38,25 @@ fn parse_example_error(code: &str) -> String {
         Ok(_) => String::new(), // Valid, no error
         Err(e) => {
             let error_msg = e.to_string();
+            let lower = error_msg.to_lowercase();
 
-            // Check for common issues and provide helpful messages
-            if error_msg.contains("unexpected end of input") {
-                "Incomplete expression - missing closing brace or bracket".to_string()
-            } else if error_msg.contains("expected") && error_msg.contains("found `}`") {
-                "Missing field in struct initialization.\nTip: Make sure all required fields are included".to_string()
-            } else if error_msg.contains("expected `,`") {
-                "Missing comma between fields or elements".to_string()
-            } else if error_msg.contains("expected identifier") {
-                "Invalid syntax - check field names and values".to_string()
+            // Provide user-friendly hints for common issues
+            // These use broad pattern matching to be resilient to minor message changes
+            let hint = if lower.contains("end of input") || lower.contains("eof") {
+                Some("Incomplete expression - check for missing closing delimiters")
+            } else if lower.contains("expected") && lower.contains(",") {
+                Some("Missing comma between fields or elements")
+            } else if lower.contains("expected") && lower.contains("}") {
+                Some("Possible missing field in struct initialization")
+            } else if lower.contains("identifier") {
+                Some("Check field names and syntax")
             } else {
-                format!("Syntax error: {}", error_msg)
+                None
+            };
+
+            match hint {
+                Some(h) => format!("{}\nDetails: {}", h, error_msg),
+                None => format!("Syntax error: {}", error_msg),
             }
         }
     }
@@ -141,7 +148,13 @@ pub fn validate_annotations(content: &str) -> Vec<Diagnostic> {
                         }
 
                         let line_content = lines.get(start_line).unwrap_or(&"");
-                        let char_start = ann.status.and_then(|s| line_content.find(&s.to_string()));
+                        // Find the expression start (after "STATUS:") for better highlighting
+                        let char_start = line_content.find(':').map(|pos| {
+                            // Skip past the colon and any whitespace
+                            let after_colon = &line_content[pos + 1..];
+                            let trimmed_start = after_colon.len() - after_colon.trim_start().len();
+                            pos + 1 + trimmed_start
+                        });
 
                         diagnostics.push(Diagnostic {
                             line: start_line,

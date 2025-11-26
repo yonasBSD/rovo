@@ -313,6 +313,39 @@ fn parse_multiline_response(doc_lines: &[(usize, &str)]) -> Option<(Annotation, 
     Some((ann, lines_consumed))
 }
 
+/// Count delimiter depths while ignoring delimiters inside string/char literals
+/// Returns (brace_depth, bracket_depth, paren_depth)
+fn count_delimiters(content: &str) -> (i32, i32, i32) {
+    let mut brace_depth = 0i32;
+    let mut bracket_depth = 0i32;
+    let mut paren_depth = 0i32;
+    let mut in_string = false;
+    let mut in_char = false;
+    let mut escape_next = false;
+
+    for ch in content.chars() {
+        if escape_next {
+            escape_next = false;
+            continue;
+        }
+
+        match ch {
+            '\\' if in_string || in_char => escape_next = true,
+            '"' if !in_char => in_string = !in_string,
+            '\'' if !in_string => in_char = !in_char,
+            '{' if !in_string && !in_char => brace_depth += 1,
+            '}' if !in_string && !in_char => brace_depth -= 1,
+            '[' if !in_string && !in_char => bracket_depth += 1,
+            ']' if !in_string && !in_char => bracket_depth -= 1,
+            '(' if !in_string && !in_char => paren_depth += 1,
+            ')' if !in_string && !in_char => paren_depth -= 1,
+            _ => {}
+        }
+    }
+
+    (brace_depth, bracket_depth, paren_depth)
+}
+
 /// Parse a potentially multi-line example from # Examples section
 /// Returns the annotation and the number of lines consumed
 fn parse_multiline_example(doc_lines: &[(usize, &str)]) -> Option<(Annotation, usize)> {
@@ -367,23 +400,9 @@ fn parse_multiline_example(doc_lines: &[(usize, &str)]) -> Option<(Annotation, u
         example_lines.push(after_colon);
 
         // Check if the expression needs more lines (count braces/brackets/parens)
-        let mut brace_depth = 0i32;
-        let mut bracket_depth = 0i32;
-        let mut paren_depth = 0i32;
-
-        for line_content in &example_lines {
-            for ch in line_content.chars() {
-                match ch {
-                    '{' => brace_depth += 1,
-                    '}' => brace_depth -= 1,
-                    '[' => bracket_depth += 1,
-                    ']' => bracket_depth -= 1,
-                    '(' => paren_depth += 1,
-                    ')' => paren_depth -= 1,
-                    _ => {}
-                }
-            }
-        }
+        // Uses string-aware counting to ignore delimiters inside literals
+        let (mut brace_depth, mut bracket_depth, mut paren_depth) =
+            count_delimiters(example_lines.join("\n").as_str());
 
         // Continue collecting lines if we have unclosed delimiters
         while (brace_depth > 0 || bracket_depth > 0 || paren_depth > 0)
@@ -400,21 +419,12 @@ fn parse_multiline_example(doc_lines: &[(usize, &str)]) -> Option<(Annotation, u
                 break;
             }
 
-            // Count delimiters in this line
-            for ch in next_content.chars() {
-                match ch {
-                    '{' => brace_depth += 1,
-                    '}' => brace_depth -= 1,
-                    '[' => bracket_depth += 1,
-                    ']' => bracket_depth -= 1,
-                    '(' => paren_depth += 1,
-                    ')' => paren_depth -= 1,
-                    _ => {}
-                }
-            }
-
             example_lines.push(next_content);
             lines_consumed += 1;
+
+            // Recount delimiters with all collected content
+            (brace_depth, bracket_depth, paren_depth) =
+                count_delimiters(example_lines.join("\n").as_str());
         }
     }
 

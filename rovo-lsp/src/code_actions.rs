@@ -707,13 +707,16 @@ fn find_effective_doc_end(content: &str, doc_start: usize, doc_end: usize) -> us
 /// Returns (needs_prefix_blank, needs_suffix_blank)
 fn check_blank_line_requirements(lines: &[&str], insert_line: usize) -> (bool, bool) {
     let needs_blank_line = if insert_line > 0 && insert_line <= lines.len() {
-        lines[insert_line - 1].trim() != "///"
+        let prev = lines[insert_line - 1].trim();
+        // No blank needed if previous line is empty doc comment or pure blank line
+        prev != "///" && !prev.is_empty()
     } else {
         true
     };
 
     let needs_suffix_blank = if insert_line < lines.len() {
         let next = lines[insert_line].trim();
+        // No suffix blank needed if next line is empty doc comment, pure blank, or nothing
         !next.is_empty() && next != "///"
     } else {
         false
