@@ -99,6 +99,14 @@ pub fn is_near_rovo_attribute(content: &str, target_line: usize) -> bool {
     false
 }
 
+/// Internal enum for tracking which documentation section we're parsing
+#[derive(Clone, Copy, PartialEq)]
+enum Section {
+    Responses,
+    Examples,
+    Metadata,
+}
+
 /// Parse all Rovo annotations from source code content
 ///
 /// Searches for #[rovo] attributes and extracts all @ annotations and markdown sections
@@ -158,7 +166,7 @@ pub fn parse_annotations(content: &str) -> Vec<Annotation> {
         doc_lines.reverse();
 
         // Now parse the doc lines in forward order
-        let mut current_section: Option<&str> = None;
+        let mut current_section: Option<Section> = None;
         let mut idx = 0;
 
         while idx < doc_lines.len() {
@@ -170,17 +178,17 @@ pub fn parse_annotations(content: &str) -> Vec<Annotation> {
                 let section_name = doc_content.trim_start_matches("# ").trim();
                 match section_name {
                     "Responses" => {
-                        current_section = Some("responses");
+                        current_section = Some(Section::Responses);
                         annotations
                             .push(Annotation::new(AnnotationKind::ResponsesSection, line_num));
                     }
                     "Examples" => {
-                        current_section = Some("examples");
+                        current_section = Some(Section::Examples);
                         annotations
                             .push(Annotation::new(AnnotationKind::ExamplesSection, line_num));
                     }
                     "Metadata" => {
-                        current_section = Some("metadata");
+                        current_section = Some(Section::Metadata);
                         annotations
                             .push(Annotation::new(AnnotationKind::MetadataSection, line_num));
                     }
@@ -191,46 +199,40 @@ pub fn parse_annotations(content: &str) -> Vec<Annotation> {
             }
 
             // Parse content based on current section or annotation
-            if let Some(section) = current_section {
-                match section {
-                    "responses" => {
-                        // Try to parse a multi-line response
-                        if let Some((ann, lines_consumed)) =
-                            parse_multiline_response(&doc_lines[idx..])
-                        {
-                            annotations.push(ann);
-                            idx += lines_consumed;
-                        } else {
-                            idx += 1;
-                        }
-                    }
-                    "examples" => {
-                        // Try to parse a multi-line example
-                        if let Some((ann, lines_consumed)) =
-                            parse_multiline_example(&doc_lines[idx..])
-                        {
-                            annotations.push(ann);
-                            idx += lines_consumed;
-                        } else {
-                            idx += 1;
-                        }
-                    }
-                    "metadata" => {
-                        if let Some(ann) = parse_annotation_line(line, line_num) {
-                            annotations.push(ann);
-                        }
-                        idx += 1;
-                    }
-                    _ => {
+            match current_section {
+                Some(Section::Responses) => {
+                    // Try to parse a multi-line response
+                    if let Some((ann, lines_consumed)) = parse_multiline_response(&doc_lines[idx..])
+                    {
+                        annotations.push(ann);
+                        idx += lines_consumed;
+                    } else {
                         idx += 1;
                     }
                 }
-            } else {
-                // Not in a section - parse old-style @ annotations
-                if let Some(ann) = parse_annotation_line(line, line_num) {
-                    annotations.push(ann);
+                Some(Section::Examples) => {
+                    // Try to parse a multi-line example
+                    if let Some((ann, lines_consumed)) = parse_multiline_example(&doc_lines[idx..])
+                    {
+                        annotations.push(ann);
+                        idx += lines_consumed;
+                    } else {
+                        idx += 1;
+                    }
                 }
-                idx += 1;
+                Some(Section::Metadata) => {
+                    if let Some(ann) = parse_annotation_line(line, line_num) {
+                        annotations.push(ann);
+                    }
+                    idx += 1;
+                }
+                None => {
+                    // Not in a section - parse old-style @ annotations
+                    if let Some(ann) = parse_annotation_line(line, line_num) {
+                        annotations.push(ann);
+                    }
+                    idx += 1;
+                }
             }
         }
     }
@@ -259,10 +261,15 @@ fn parse_multiline_response(doc_lines: &[(usize, &str)]) -> Option<(Annotation, 
 
     let after_colon = content[colon_pos + 1..].trim();
 
-    // Find the " - " separator for description
-    let dash_pos = after_colon.find(" - ")?;
-    let response_type = after_colon[..dash_pos].trim().to_string();
-    let mut description_parts = vec![after_colon[dash_pos + 3..].trim()];
+    // Optionally split off " - DESCRIPTION" (description is optional)
+    let (response_type, mut description_parts) = if let Some(dash_pos) = after_colon.find(" - ") {
+        (
+            after_colon[..dash_pos].trim().to_string(),
+            vec![after_colon[dash_pos + 3..].trim()],
+        )
+    } else {
+        (after_colon.trim().to_string(), Vec::new())
+    };
 
     let mut lines_consumed = 1;
 
@@ -303,12 +310,12 @@ fn parse_multiline_response(doc_lines: &[(usize, &str)]) -> Option<(Annotation, 
         lines_consumed += 1;
     }
 
-    let description = description_parts.join(" ");
-
     let mut ann = Annotation::new(AnnotationKind::Response, line_num);
     ann.status = Some(status);
     ann.response_type = Some(response_type);
-    ann.description = Some(description);
+    if !description_parts.is_empty() {
+        ann.description = Some(description_parts.join(" "));
+    }
 
     Some((ann, lines_consumed))
 }
@@ -341,7 +348,7 @@ fn count_delimiters(content: &str) -> (i32, i32, i32) {
             // Check for opening quote
             if j < chars.len() && chars[j] == '"' {
                 j += 1; // Skip opening quote
-                // Find closing quote followed by same number of #s
+                        // Find closing quote followed by same number of #s
                 while j < chars.len() {
                     if chars[j] == '"' {
                         // Check if followed by enough #s
@@ -929,7 +936,10 @@ async fn handler() {}
         assert_eq!(count_delimiters(r##"let x = r#"{ brace"#;"##), (0, 0, 0));
 
         // Multiple hash raw string
-        assert_eq!(count_delimiters(r###"let x = r##"{ [ ( )"##;"###), (0, 0, 0));
+        assert_eq!(
+            count_delimiters(r###"let x = r##"{ [ ( )"##;"###),
+            (0, 0, 0)
+        );
 
         // Mixed: real brace + string with brace
         assert_eq!(count_delimiters(r#"Foo { name: "{ inner }" }"#), (0, 0, 0));
@@ -939,5 +949,34 @@ async fn handler() {}
 
         // Char literal with bracket
         assert_eq!(count_delimiters("let x = '[';"), (0, 0, 0));
+    }
+
+    #[test]
+    fn test_parse_response_without_description() {
+        // Responses without descriptions should still be parsed
+        let content = r#"
+/// # Responses
+///
+/// 200: Json<User>
+/// 404: ()
+#[rovo]
+async fn handler() {}
+"#;
+        let annotations = parse_annotations(content);
+
+        let responses: Vec<_> = annotations
+            .iter()
+            .filter(|a| a.kind == AnnotationKind::Response)
+            .collect();
+
+        assert_eq!(responses.len(), 2, "Should have exactly 2 responses");
+
+        assert_eq!(responses[0].status, Some(200));
+        assert_eq!(responses[0].response_type, Some("Json<User>".to_string()));
+        assert_eq!(responses[0].description, None);
+
+        assert_eq!(responses[1].status, Some(404));
+        assert_eq!(responses[1].response_type, Some("()".to_string()));
+        assert_eq!(responses[1].description, None);
     }
 }
