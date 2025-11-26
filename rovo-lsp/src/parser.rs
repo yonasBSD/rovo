@@ -341,7 +341,7 @@ fn count_delimiters(content: &str) -> (i32, i32, i32) {
             // Check for opening quote
             if j < chars.len() && chars[j] == '"' {
                 j += 1; // Skip opening quote
-                // Find closing quote followed by same number of #s
+                        // Find closing quote followed by same number of #s
                 while j < chars.len() {
                     if chars[j] == '"' {
                         // Check if followed by enough #s
@@ -929,7 +929,10 @@ async fn handler() {}
         assert_eq!(count_delimiters(r##"let x = r#"{ brace"#;"##), (0, 0, 0));
 
         // Multiple hash raw string
-        assert_eq!(count_delimiters(r###"let x = r##"{ [ ( )"##;"###), (0, 0, 0));
+        assert_eq!(
+            count_delimiters(r###"let x = r##"{ [ ( )"##;"###),
+            (0, 0, 0)
+        );
 
         // Mixed: real brace + string with brace
         assert_eq!(count_delimiters(r#"Foo { name: "{ inner }" }"#), (0, 0, 0));
