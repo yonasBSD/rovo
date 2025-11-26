@@ -127,7 +127,10 @@ Rovo uses Rust-style documentation with markdown sections and metadata annotatio
 ///
 /// # Examples
 ///
-/// 200: TodoItem { id: 1, title: "Buy milk".into(), completed: false }
+/// 200: TodoItem {
+///   title: "Buy milk".into(),
+///   ..Default::default()
+/// }
 /// 404: ()
 ///
 /// # Metadata
