@@ -34,7 +34,7 @@ Built on [aide](https://github.com/tamasfe/aide), Rovo provides a declarative ap
 use rovo::{rovo, Router, routing::get};
 use rovo::{schemars, schemars::JsonSchema};
 use rovo::{aide, aide::{axum::IntoApiResponse, openapi::OpenApi}};
-use axum::{extract::State, response::Json};
+use rovo::{extract::State, response::Json};
 use serde::Serialize;
 
 #[derive(Clone)]
@@ -96,7 +96,7 @@ serde = { version = "1.0", features = ["derive"] }
 tokio = { version = "1", features = ["full"] }
 ```
 
-> **Note:** Rovo re-exports `aide` and `schemars`, so you don't need to add them as separate dependencies. Access them via `rovo::aide` and `rovo::schemars`.
+> **Note:** Rovo re-exports `aide`, `schemars`, and common axum types (`extract`, `response`, `http`), so you can import them directly from rovo. The `axum` dependency is still needed for `axum::serve()`.
 
 For detailed API documentation, see [docs.rs/rovo](https://docs.rs/rovo).
 
@@ -354,7 +354,7 @@ async fn handler() -> impl IntoResponse {
 
 // After
 use rovo::{Router, routing::get, schemars::JsonSchema};
-use rovo::aide::axum::IntoApiResponse;
+use rovo::{aide::axum::IntoApiResponse, response::Json};
 
 /// Handler description
 ///
