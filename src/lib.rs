@@ -313,7 +313,7 @@ where
             let json_bytes: ::axum::body::Bytes = serde_json::to_vec_pretty(&api_mut)
                 .expect("Failed to serialize OpenAPI spec to JSON")
                 .into();
-            let yaml_string: Arc<str> = serde_yaml::to_string(&api_mut)
+            let yaml_bytes: ::axum::body::Bytes = serde_yaml::to_string(&api_mut)
                 .expect("Failed to serialize OpenAPI spec to YAML")
                 .into();
 
@@ -335,33 +335,33 @@ where
                 }),
             );
 
-            // Add YAML endpoint - returns pre-serialized string
+            // Add YAML endpoint - returns pre-serialized bytes
             let yaml_route = format!("{base_route}.yaml");
-            let yaml_for_handler = Arc::clone(&yaml_string);
+            let yaml_for_handler = yaml_bytes.clone();
             let router_with_yaml = router_with_json.route(
                 &yaml_route,
                 ::axum::routing::get(move || {
-                    let yaml = Arc::clone(&yaml_for_handler);
+                    let yaml = yaml_for_handler.clone();
                     async move {
                         (
                             [(::axum::http::header::CONTENT_TYPE, "application/x-yaml")],
-                            yaml.to_string(),
+                            yaml,
                         )
                     }
                 }),
             );
 
-            // Add YML endpoint (alias for YAML) - reuses pre-serialized string
+            // Add YML endpoint (alias for YAML) - reuses pre-serialized bytes
             let yml_route = format!("{base_route}.yml");
-            let yml_for_handler = Arc::clone(&yaml_string);
+            let yml_for_handler = yaml_bytes.clone();
             let router_with_yml = router_with_yaml.route(
                 &yml_route,
                 ::axum::routing::get(move || {
-                    let yaml = Arc::clone(&yml_for_handler);
+                    let yaml = yml_for_handler.clone();
                     async move {
                         (
                             [(::axum::http::header::CONTENT_TYPE, "application/x-yaml")],
-                            yaml.to_string(),
+                            yaml,
                         )
                     }
                 }),
