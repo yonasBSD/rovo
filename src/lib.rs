@@ -310,7 +310,7 @@ where
             let axum_router = self.inner.finish_api(&mut api_mut);
 
             // Pre-serialize once at startup to avoid cloning on each request
-            let json_bytes: ::axum::body::Bytes = serde_json::to_vec_pretty(&api_mut)
+            let json_bytes: ::axum::body::Bytes = serde_json::to_vec(&api_mut)
                 .expect("Failed to serialize OpenAPI spec to JSON")
                 .into();
             let yaml_bytes: ::axum::body::Bytes = serde_yaml::to_string(&api_mut)
