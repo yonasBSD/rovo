@@ -1,10 +1,10 @@
 mod annotations;
 mod error;
 mod tokens;
-mod types;
+pub mod types;
 
 pub use error::ParseError;
-pub use types::{DocInfo, FuncItem};
+pub use types::{DocInfo, FuncItem, PathParamDoc, PathParamInfo};
 
 use proc_macro2::{Span, TokenStream, TokenTree};
 use types::DocLine;
@@ -65,6 +65,9 @@ pub fn parse_rovo_function(input: TokenStream) -> Result<(FuncItem, DocInfo), Pa
     // Extract state type from function parameters
     let state_type = tokens::extract_state_type(&input);
 
+    // Extract path parameter info from function signature
+    let path_params = tokens::extract_path_info(&input);
+
     // Parse doc comments
     let mut doc_info = parse_doc_comments(&doc_lines)?;
 
@@ -75,6 +78,7 @@ pub fn parse_rovo_function(input: TokenStream) -> Result<(FuncItem, DocInfo), Pa
         name: func_name,
         tokens: input,
         state_type,
+        path_params,
     };
 
     Ok((func_item, doc_info))
@@ -118,6 +122,7 @@ fn parse_doc_comments(lines: &[DocLine]) -> Result<DocInfo, ParseError> {
                 "Responses" => Some("responses"),
                 "Examples" => Some("examples"),
                 "Metadata" => Some("metadata"),
+                "Path Parameters" => Some("path_parameters"),
                 _ => None, // Unknown section - ignore
             };
             continue;
@@ -308,6 +313,15 @@ fn parse_doc_comments(lines: &[DocLine]) -> Result<DocInfo, ParseError> {
                     );
 
                     return Err(ParseError::with_span(error_msg, span));
+                }
+            }
+            Some("path_parameters") if !trimmed.is_empty() => {
+                // Parse path parameter documentation
+                // Format: "name: description"
+                if let Some(colon_pos) = trimmed.find(':') {
+                    let name = trimmed[..colon_pos].trim().to_string();
+                    let description = trimmed[colon_pos + 1..].trim().to_string();
+                    doc_info.path_params.push(PathParamDoc { name, description });
                 }
             }
             None if !trimmed.is_empty() => {
