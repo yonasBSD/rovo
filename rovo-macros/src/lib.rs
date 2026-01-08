@@ -205,7 +205,7 @@ pub fn rovo(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
                 impl #func_name {
                     #[doc(hidden)]
-                    pub fn __docs(op: aide::transform::TransformOperation) -> aide::transform::TransformOperation {
+                    pub fn __docs(op: ::rovo::aide::transform::TransformOperation) -> ::rovo::aide::transform::TransformOperation {
                         op
                             #operation_id_setter
                             .summary(#title)
@@ -220,24 +220,24 @@ pub fn rovo(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
                 // Implement the IntoApiMethodRouter trait
                 impl ::rovo::IntoApiMethodRouter<#state_type> for #func_name {
-                    fn into_get_route(self) -> aide::axum::routing::ApiMethodRouter<#state_type> {
-                        aide::axum::routing::get_with(#impl_name, Self::__docs)
+                    fn into_get_route(self) -> ::rovo::aide::axum::routing::ApiMethodRouter<#state_type> {
+                        ::rovo::aide::axum::routing::get_with(#impl_name, Self::__docs)
                     }
 
-                    fn into_post_route(self) -> aide::axum::routing::ApiMethodRouter<#state_type> {
-                        aide::axum::routing::post_with(#impl_name, Self::__docs)
+                    fn into_post_route(self) -> ::rovo::aide::axum::routing::ApiMethodRouter<#state_type> {
+                        ::rovo::aide::axum::routing::post_with(#impl_name, Self::__docs)
                     }
 
-                    fn into_patch_route(self) -> aide::axum::routing::ApiMethodRouter<#state_type> {
-                        aide::axum::routing::patch_with(#impl_name, Self::__docs)
+                    fn into_patch_route(self) -> ::rovo::aide::axum::routing::ApiMethodRouter<#state_type> {
+                        ::rovo::aide::axum::routing::patch_with(#impl_name, Self::__docs)
                     }
 
-                    fn into_delete_route(self) -> aide::axum::routing::ApiMethodRouter<#state_type> {
-                        aide::axum::routing::delete_with(#impl_name, Self::__docs)
+                    fn into_delete_route(self) -> ::rovo::aide::axum::routing::ApiMethodRouter<#state_type> {
+                        ::rovo::aide::axum::routing::delete_with(#impl_name, Self::__docs)
                     }
 
-                    fn into_put_route(self) -> aide::axum::routing::ApiMethodRouter<#state_type> {
-                        aide::axum::routing::put_with(#impl_name, Self::__docs)
+                    fn into_put_route(self) -> ::rovo::aide::axum::routing::ApiMethodRouter<#state_type> {
+                        ::rovo::aide::axum::routing::put_with(#impl_name, Self::__docs)
                     }
                 }
 
