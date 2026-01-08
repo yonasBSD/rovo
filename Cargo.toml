@@ -29,7 +29,7 @@ scalar = ["aide/scalar"]
 
 [dependencies]
 rovo-macros = { version = "0.2.10", path = "rovo-macros" }
-aide = { version = "0.15", features = ["axum", "axum-json"] }
+aide = { version = "0.15", features = ["axum", "axum-json", "axum-query"] }
 axum = "0.8.7"
 serde_yaml = "0.9"
 schemars = { version = "0.9", features = ["uuid1"] }
