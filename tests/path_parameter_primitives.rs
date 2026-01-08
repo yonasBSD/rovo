@@ -49,7 +49,10 @@ fn test_single_u64_path_parameter() {
     let mut op = Operation::default();
     let transform = TransformOperation::new(&mut op);
     let _ = get_user_by_u64::__docs(transform);
-    eprintln!("Direct __docs call - Parameters count: {}", op.parameters.len());
+    eprintln!(
+        "Direct __docs call - Parameters count: {}",
+        op.parameters.len()
+    );
     for (i, p) in op.parameters.iter().enumerate() {
         eprintln!("Direct Parameter {}: {:?}", i, p);
     }
@@ -203,7 +206,10 @@ fn test_bool_path_parameter() {
     let get_op = path.get.as_ref().unwrap();
 
     let active_param = find_path_parameter(&get_op.parameters, "active");
-    assert!(active_param.is_some(), "Should have 'active' path parameter");
+    assert!(
+        active_param.is_some(),
+        "Should have 'active' path parameter"
+    );
 }
 
 // =============================================================================
