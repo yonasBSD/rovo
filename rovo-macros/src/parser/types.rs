@@ -22,6 +22,8 @@ pub struct PathParamDoc {
     pub name: String,
     /// Parameter description
     pub description: String,
+    /// Span for error reporting
+    pub span: Span,
 }
 
 #[derive(Debug, Clone, Default)]

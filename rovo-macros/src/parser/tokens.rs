@@ -7,100 +7,150 @@ use super::types::PathParamInfo;
 /// - `Path(id): Path<u64>` (single primitive)
 /// - `Path((a, b)): Path<(Uuid, u32)>` (tuple)
 /// - `Path(MyStruct { id }): Path<MyStruct>` (struct destructuring)
+/// - Multiple Path extractors: `Path(id): Path<Uuid>, Path(name): Path<String>`
 pub fn extract_path_info(tokens: &TokenStream) -> Option<PathParamInfo> {
     let token_str = tokens.to_string();
 
-    // Look for "Path(" pattern (the binding pattern)
-    // Handle both "Path(" (compiler) and "Path (" (proc_macro2 from string)
-    let path_pos = token_str.find("Path(").or_else(|| token_str.find("Path ("))?;
-    let after_path = if token_str[path_pos..].starts_with("Path(") {
-        &token_str[path_pos + 5..] // Skip "Path(" - we're now right after the opening paren
-    } else {
-        &token_str[path_pos + 6..] // Skip "Path (" - we're now right after the opening paren
-    };
+    let mut all_bindings = Vec::new();
+    let mut all_types = Vec::new();
+    let mut any_struct_pattern = false;
+    let mut search_start = 0;
 
-    // We're now right after the opening paren, so after_open IS after_path
-    let after_open = after_path;
+    // Find ALL Path() patterns in the token stream
+    while let Some(rel_pos) = find_path_pattern(&token_str[search_start..]) {
+        let path_pos = search_start + rel_pos;
 
-    // Find matching closing paren for the binding
-    let mut depth = 1;
-    let mut close_pos = 0;
-    for (i, ch) in after_open.chars().enumerate() {
-        match ch {
-            '(' => depth += 1,
-            ')' => {
-                depth -= 1;
-                if depth == 0 {
-                    close_pos = i;
-                    break;
+        // Determine skip length based on whether there's a space
+        let skip_len = if token_str[path_pos..].starts_with("Path(") {
+            5 // "Path("
+        } else {
+            6 // "Path ("
+        };
+
+        let after_open = &token_str[path_pos + skip_len..];
+
+        // Find matching closing paren for the binding
+        let mut depth = 1;
+        let mut close_pos = 0;
+        for (i, ch) in after_open.chars().enumerate() {
+            match ch {
+                '(' => depth += 1,
+                ')' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        close_pos = i;
+                        break;
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        if close_pos == 0 && depth != 0 {
+            search_start = path_pos + skip_len;
+            continue;
+        }
+
+        let binding_content = after_open[..close_pos].trim();
+
+        // Check if this is a struct destructuring pattern (contains '{')
+        if binding_content.contains('{') {
+            any_struct_pattern = true;
+        }
+
+        // Extract bindings from this Path extractor
+        if !binding_content.contains('{') {
+            if binding_content.starts_with('(') {
+                // Tuple pattern like "(a, b)"
+                let inner = binding_content.trim_start_matches('(').trim_end_matches(')');
+                for s in inner.split(',') {
+                    let binding = s.trim().to_string();
+                    if !binding.is_empty() && !all_bindings.contains(&binding) {
+                        all_bindings.push(binding);
+                    }
+                }
+            } else if !binding_content.is_empty() {
+                // Single binding like "id"
+                let binding = binding_content.to_string();
+                if !all_bindings.contains(&binding) {
+                    all_bindings.push(binding);
                 }
             }
-            _ => {}
         }
+
+        // Extract the type from Path<Type>
+        let rest = &after_open[close_pos..];
+        if let Some(type_start) = rest.find("Path") {
+            let after_type_path = &rest[type_start + 4..];
+            if let Some(angle_open) = after_type_path.find('<') {
+                let after_angle = &after_type_path[angle_open + 1..];
+
+                // Find matching closing angle bracket
+                let mut depth = 1;
+                let mut type_end = 0;
+                for (i, ch) in after_angle.chars().enumerate() {
+                    match ch {
+                        '<' => depth += 1,
+                        '>' => {
+                            depth -= 1;
+                            if depth == 0 {
+                                type_end = i;
+                                break;
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+
+                if type_end > 0 || depth == 0 {
+                    let inner_type = after_angle[..type_end].trim().to_string();
+                    if !inner_type.is_empty() {
+                        all_types.push(inner_type);
+                    }
+                }
+            }
+        }
+
+        // Move past this Path() for the next iteration
+        search_start = path_pos + skip_len + close_pos;
     }
 
-    if close_pos == 0 && depth != 0 {
+    if all_bindings.is_empty() && !any_struct_pattern {
         return None;
     }
 
-    let binding_content = after_open[..close_pos].trim();
-
-    // Check if this is a struct destructuring pattern (contains '{')
-    let is_struct_pattern = binding_content.contains('{');
-
-    // Extract bindings
-    let bindings = if is_struct_pattern {
-        // For struct patterns like "MyStruct { id }", we don't extract bindings
-        // because aide will handle this via JsonSchema
-        vec![]
-    } else if binding_content.starts_with('(') {
-        // Tuple pattern like "(a, b)"
-        let inner = binding_content.trim_start_matches('(').trim_end_matches(')');
-        inner.split(',')
-            .map(|s| s.trim().to_string())
-            .filter(|s| !s.is_empty())
-            .collect()
+    // Combine types - use tuple format if multiple, single if one
+    let inner_type = if all_types.len() == 1 {
+        all_types.into_iter().next().unwrap_or_default()
+    } else if all_types.len() > 1 {
+        format!("({})", all_types.join(", "))
     } else {
-        // Single binding like "id"
-        vec![binding_content.to_string()]
+        String::new()
     };
-
-    // Now extract the type from Path<Type>
-    // Look for ": Path <" after the binding
-    let rest = &after_open[close_pos..];
-    let type_start = rest.find("Path")?;
-    let after_type_path = &rest[type_start + 4..];
-    let angle_open = after_type_path.find('<')?;
-    let after_angle = &after_type_path[angle_open + 1..];
-
-    // Find matching closing angle bracket
-    let mut depth = 1;
-    let mut type_end = 0;
-    for (i, ch) in after_angle.chars().enumerate() {
-        match ch {
-            '<' => depth += 1,
-            '>' => {
-                depth -= 1;
-                if depth == 0 {
-                    type_end = i;
-                    break;
-                }
-            }
-            _ => {}
-        }
-    }
-
-    if type_end == 0 && depth != 0 {
-        return None;
-    }
-
-    let inner_type = after_angle[..type_end].trim().to_string();
 
     Some(PathParamInfo {
-        bindings,
+        bindings: all_bindings,
         inner_type,
-        is_struct_pattern,
+        is_struct_pattern: any_struct_pattern,
     })
+}
+
+/// Find the next "Path(" or "Path (" pattern in a string
+fn find_path_pattern(s: &str) -> Option<usize> {
+    // Find "Path(" or "Path (" but not "Path<" (which is the type, not binding)
+    let mut search_from = 0;
+    while let Some(pos) = s[search_from..].find("Path") {
+        let abs_pos = search_from + pos;
+        let after = &s[abs_pos + 4..];
+
+        if after.starts_with('(') || after.starts_with(" (") {
+            return Some(abs_pos);
+        }
+
+        // Skip this "Path" and continue searching
+        search_from = abs_pos + 4;
+    }
+    None
 }
 
 /// Extract the state type from State<T> in function parameters
@@ -286,6 +336,37 @@ mod tests {
         let info = result.unwrap();
         assert_eq!(info.bindings, vec!["id"]);
         assert_eq!(info.inner_type, "String");
+    }
+
+    #[test]
+    fn handles_multiple_path_extractors() {
+        let tokens: TokenStream = "Path(id): Path<Uuid>, Path(name): Path<String>".parse().unwrap();
+        eprintln!("Multiple path extractors: '{}'", tokens.to_string());
+        let result = extract_path_info(&tokens);
+        assert!(result.is_some(), "Should extract multiple path extractors");
+        let info = result.unwrap();
+        eprintln!("Bindings: {:?}", info.bindings);
+        assert!(info.bindings.contains(&"id".to_string()), "Should have 'id'");
+        assert!(info.bindings.contains(&"name".to_string()), "Should have 'name'");
+        assert_eq!(info.bindings.len(), 2);
+    }
+
+    #[test]
+    fn handles_multiple_path_extractors_multiline() {
+        let tokens: TokenStream = r#"
+            async fn get_todo(
+                Path(id): Path<Uuid>,
+                Path(id2): Path<String>,
+            ) -> impl IntoApiResponse { }
+        "#.parse().unwrap();
+        eprintln!("Multiline path extractors: '{}'", tokens.to_string());
+        let result = extract_path_info(&tokens);
+        assert!(result.is_some(), "Should extract multiple path extractors from multiline");
+        let info = result.unwrap();
+        eprintln!("Bindings: {:?}", info.bindings);
+        assert!(info.bindings.contains(&"id".to_string()), "Should have 'id'");
+        assert!(info.bindings.contains(&"id2".to_string()), "Should have 'id2'");
+        assert_eq!(info.bindings.len(), 2);
     }
 
     // State type extraction tests

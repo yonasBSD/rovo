@@ -279,6 +279,10 @@ fn test_tuple_path_parameters() {
 
 /// Get item without parameter description.
 ///
+/// # Path Parameters
+///
+/// item_id:
+///
 /// # Responses
 ///
 /// 200: Json<String> - Item found

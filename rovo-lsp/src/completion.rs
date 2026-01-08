@@ -85,6 +85,12 @@ pub fn get_completions(content: &str, position: Position) -> Vec<CompletionItem>
 
     // Context-aware completions based on current section
     match context {
+        SectionContext::PathParametersSection => {
+            // In # Path Parameters section, complete parameter lines
+            if after_doc.is_empty() || after_doc.chars().all(|c| c.is_alphanumeric() || c == '_') {
+                return get_path_parameter_line_completions(content, &lines, position.line, after_doc);
+            }
+        }
         SectionContext::ResponsesSection => {
             // In # Responses section, complete response lines
             if after_doc.is_empty()
@@ -132,6 +138,7 @@ enum SectionContext {
     ResponsesSection,
     ExamplesSection,
     MetadataSection,
+    PathParametersSection,
     None,
 }
 
@@ -154,6 +161,8 @@ fn detect_section_context(lines: &[&str], current_line: usize) -> SectionContext
             return SectionContext::ExamplesSection;
         } else if content == "# Metadata" {
             return SectionContext::MetadataSection;
+        } else if content == "# Path Parameters" {
+            return SectionContext::PathParametersSection;
         }
 
         // Check for #[rovo] attribute - we've gone too far
@@ -170,6 +179,10 @@ fn get_section_completions(typed: &str, _context: &SectionContext) -> Vec<Comple
     let mut completions = Vec::new();
 
     let sections = [
+        (
+            "# Path Parameters",
+            "# Path Parameters\n///\n/// ${1:param_name}: ${2:description}",
+        ),
         (
             "# Responses",
             "# Responses\n///\n/// ${1:200}: ${2:Json<T>} - ${3:description}",
@@ -232,6 +245,158 @@ fn get_example_line_completions() -> Vec<CompletionItem> {
         documentation: Some("Add a 200 OK example".to_string()),
         insert_text: Some("200: ${1:expression}".to_string()),
     }]
+}
+
+/// Get completions for path parameter lines in # Path Parameters section
+fn get_path_parameter_line_completions(
+    content: &str,
+    lines: &[&str],
+    current_line: usize,
+    filter: &str,
+) -> Vec<CompletionItem> {
+    let mut completions = Vec::new();
+
+    // Find the Path(...) bindings from the function signature
+    let bindings = extract_path_bindings_from_context(content, lines, current_line);
+
+    // Find which params are already documented
+    let documented = get_documented_path_params(lines, current_line);
+
+    // Add completions for each undocumented binding
+    for binding in bindings {
+        if documented.contains(&binding) {
+            continue; // Skip already documented params
+        }
+
+        if !filter.is_empty() && !binding.starts_with(filter) {
+            continue; // Skip if doesn't match filter
+        }
+
+        completions.push(CompletionItem {
+            label: binding.clone(),
+            kind: CompletionItemKind::Snippet,
+            detail: Some("Path parameter from function signature".to_string()),
+            documentation: Some(format!("Document the '{}' path parameter", binding)),
+            insert_text: Some(format!("{}: ${{1:Description of {}}}", binding, binding)),
+        });
+    }
+
+    // Add fallback completions if no bindings found or all documented
+    if completions.is_empty() && filter.is_empty() {
+        completions.push(CompletionItem {
+            label: "parameter".to_string(),
+            kind: CompletionItemKind::Snippet,
+            detail: Some("Generic path parameter".to_string()),
+            documentation: Some(
+                "Add a path parameter with a custom name and description".to_string(),
+            ),
+            insert_text: Some("${1:param_name}: ${2:description}".to_string()),
+        });
+    }
+
+    completions
+}
+
+/// Extract path binding names from the function signature near the current line
+fn extract_path_bindings_from_context(
+    _content: &str,
+    lines: &[&str],
+    current_line: usize,
+) -> Vec<String> {
+    let mut bindings = Vec::new();
+
+    // Look forward from current line to find function signature with Path(...)
+    for line in lines.iter().skip(current_line) {
+        // Stop if we hit a non-doc, non-attr, non-fn line after seeing fn
+        let trimmed = line.trim();
+
+        if trimmed.starts_with("///") || trimmed.starts_with("#[") {
+            continue;
+        }
+
+        // Look for Path( in the line
+        if let Some(path_pos) = line.find("Path(") {
+            let after_path = &line[path_pos + 5..];
+
+            // Handle tuple: Path((a, b))
+            let bindings_str = if after_path.starts_with('(') {
+                let close = after_path.find(')').unwrap_or(after_path.len());
+                &after_path[1..close]
+            } else {
+                // Single binding: Path(name)
+                let close = after_path.find(')').unwrap_or(after_path.len());
+                &after_path[..close]
+            };
+
+            // Parse the bindings
+            for binding in bindings_str.split(',') {
+                let binding = binding.trim();
+                if !binding.is_empty()
+                    && binding.chars().all(|c| c.is_alphanumeric() || c == '_')
+                {
+                    bindings.push(binding.to_string());
+                }
+            }
+
+            break;
+        }
+
+        // Stop if we've gone past the function
+        if trimmed.contains('{') {
+            break;
+        }
+    }
+
+    bindings
+}
+
+/// Get the list of already documented path parameters
+fn get_documented_path_params(lines: &[&str], current_line: usize) -> Vec<String> {
+    let mut documented = Vec::new();
+    let mut in_path_params = false;
+
+    // Look backwards and forwards from current line within the doc block
+    for i in (0..=current_line).rev() {
+        let trimmed = lines[i].trim();
+        if !trimmed.starts_with("///") {
+            break;
+        }
+
+        let content = trimmed.trim_start_matches("///").trim();
+        if content == "# Path Parameters" {
+            in_path_params = true;
+            break;
+        } else if content.starts_with("# ") {
+            break;
+        }
+    }
+
+    if !in_path_params {
+        return documented;
+    }
+
+    // Now scan from section header to current line to find documented params
+    for line in lines.iter().take(current_line + 1) {
+        let trimmed = line.trim();
+        if !trimmed.starts_with("///") {
+            continue;
+        }
+
+        let content = trimmed.trim_start_matches("///").trim();
+        if content.starts_with("# ") {
+            continue;
+        }
+
+        // Parse "name: description" format
+        if let Some(colon_pos) = content.find(':') {
+            let name = content[..colon_pos].trim();
+            if !name.is_empty() && name.chars().all(|c| c.is_alphanumeric() || c == '_') {
+                documented.push(name.to_string());
+            }
+        }
+    }
+
+    documented
 }
 
 /// Get completions for metadata annotations
@@ -662,5 +827,111 @@ mod tests {
         for completion in &completions {
             assert!(matches!(completion.kind, CompletionItemKind::Keyword));
         }
+    }
+
+    #[test]
+    fn test_path_parameters_section_completion() {
+        let content = "/// # Path Parameters\n/// ";
+        let position = Position {
+            line: 1,
+            character: 4,
+        };
+        let completions = get_completions(content, position);
+        // Should offer fallback parameter completion when no Path() binding found
+        assert!(!completions.is_empty());
+        assert!(completions.iter().any(|c| c.label == "parameter"));
+    }
+
+    #[test]
+    fn test_path_parameters_completion_from_signature() {
+        let content = "/// # Path Parameters\n/// \n#[rovo]\nasync fn get_user(Path(user_id): Path<u64>) {}";
+        let position = Position {
+            line: 1,
+            character: 4,
+        };
+        let completions = get_completions(content, position);
+        // Should offer completion for user_id from the function signature
+        assert!(!completions.is_empty());
+        assert!(
+            completions.iter().any(|c| c.label == "user_id"),
+            "Should find user_id from signature, got: {:?}",
+            completions.iter().map(|c| &c.label).collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn test_path_parameters_completion_skips_documented() {
+        let content =
+            "/// # Path Parameters\n/// user_id: Already documented\n/// \n#[rovo]\nasync fn get_user(Path(user_id): Path<u64>) {}";
+        let position = Position {
+            line: 2,
+            character: 4,
+        };
+        let completions = get_completions(content, position);
+        // user_id is already documented, so should not appear in completions
+        assert!(
+            !completions.iter().any(|c| c.label == "user_id"),
+            "Should not suggest already documented param"
+        );
+    }
+
+    #[test]
+    fn test_path_parameters_completion_tuple() {
+        let content =
+            "/// # Path Parameters\n/// \n#[rovo]\nasync fn get_item(Path((collection_id, index)): Path<(String, u32)>) {}";
+        let position = Position {
+            line: 1,
+            character: 4,
+        };
+        let completions = get_completions(content, position);
+        // Should offer completions for both tuple params
+        assert!(
+            completions.iter().any(|c| c.label == "collection_id"),
+            "Should find collection_id"
+        );
+        assert!(completions.iter().any(|c| c.label == "index"), "Should find index");
+    }
+
+    #[test]
+    fn test_path_parameters_section_header_completion() {
+        let content = "/// # P";
+        let position = Position {
+            line: 0,
+            character: 7,
+        };
+        let completions = get_completions(content, position);
+        // Should offer "# Path Parameters" as a section completion
+        assert!(completions.iter().any(|c| c.label == "# Path Parameters"));
+    }
+
+    #[test]
+    fn test_path_parameters_completions_have_snippets() {
+        let content = "/// # Path Parameters\n/// ";
+        let position = Position {
+            line: 1,
+            character: 4,
+        };
+        let completions = get_completions(content, position);
+
+        // All path parameter completions should have insert text with snippets
+        for completion in &completions {
+            assert!(completion.insert_text.is_some());
+            let insert_text = completion.insert_text.as_ref().unwrap();
+            // Should have the format "name: description"
+            assert!(insert_text.contains(':'));
+        }
+    }
+
+    #[test]
+    fn test_detect_path_parameters_section_context() {
+        let lines = vec![
+            "/// Get user by ID.",
+            "///",
+            "/// # Path Parameters",
+            "///",
+            "/// ",
+        ];
+        let context = detect_section_context(&lines, 4);
+        assert_eq!(context, SectionContext::PathParametersSection);
     }
 }
