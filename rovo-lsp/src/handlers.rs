@@ -558,7 +558,7 @@ fn goto_path_param_binding(
 fn get_path_param_usage_at_position(
     content: &str,
     line_idx: usize,
-    char_idx: usize,
+    byte_idx: usize,
 ) -> Option<String> {
     let lines: Vec<&str> = content.lines().collect();
     let line = lines.get(line_idx)?;
@@ -582,6 +582,9 @@ fn get_path_param_usage_at_position(
     if !in_fn_body {
         return None;
     }
+
+    // Convert byte index to character index for non-ASCII support
+    let char_idx = line[..byte_idx.min(line.len())].chars().count();
 
     // Extract identifier at position
     let mut start = char_idx;

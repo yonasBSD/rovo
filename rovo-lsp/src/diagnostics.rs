@@ -356,7 +356,14 @@ fn find_fn_line_after_rovo(lines: &[&str], rovo_line: usize) -> Option<usize> {
         if trimmed.starts_with("#[") {
             continue;
         }
-        if trimmed.contains("fn ") {
+        // Check for function definitions - must start with fn or visibility + fn
+        if trimmed.starts_with("fn ")
+            || trimmed.starts_with("pub fn ")
+            || trimmed.starts_with("async fn ")
+            || trimmed.starts_with("pub async fn ")
+            || trimmed.starts_with("pub(crate) fn ")
+            || trimmed.starts_with("pub(crate) async fn ")
+        {
             return Some(i);
         }
         if !trimmed.is_empty() && !trimmed.starts_with("///") {

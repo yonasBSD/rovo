@@ -44,7 +44,7 @@ pub struct DocInfo {
 /// Information about path parameters extracted from function signature
 #[derive(Debug, Clone)]
 pub struct PathParamInfo {
-    /// Binding names from the Path pattern (e.g., ["id"] or ["collection_id", "index"])
+    /// Binding names from the Path pattern (e.g., `["id"]` or `["collection_id", "index"]`)
     pub bindings: Vec<String>,
     /// The inner type as a string (e.g., "u64" or "(Uuid, u32)")
     pub inner_type: String,

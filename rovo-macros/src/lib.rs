@@ -21,7 +21,7 @@ mod utils;
 
 use parser::{parse_rovo_function, PathParamDoc, PathParamInfo};
 
-/// Known primitive types that map to OpenAPI types
+/// Known primitive types that map to `OpenAPI` types
 const PRIMITIVE_TYPES: &[&str] = &[
     "String", "u64", "u32", "u16", "u8", "i64", "i32", "i16", "i8", "bool", "Uuid",
 ];
@@ -34,7 +34,7 @@ fn is_primitive_type(type_name: &str) -> bool {
 /// Check if a tuple contains only primitives
 fn is_primitive_tuple(type_str: &str) -> bool {
     let inner = type_str.trim().trim_start_matches('(').trim_end_matches(')');
-    inner.split(',').map(|t| t.trim()).all(is_primitive_type)
+    inner.split(',').map(str::trim).all(is_primitive_type)
 }
 
 /// Extract individual types from a tuple type string like "(Uuid, u32)"
@@ -163,7 +163,7 @@ fn generate_path_param_setters(
 /// ```
 ///
 /// The parameter names are inferred from the variable bindings in your function
-/// signature (e.g., `Path(user_id)` creates a parameter named "user_id").
+/// signature (e.g., `Path(user_id)` creates a parameter named `user_id`).
 ///
 /// For complex types, continue using structs with `#[derive(JsonSchema)]`.
 ///

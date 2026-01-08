@@ -120,12 +120,10 @@ pub fn extract_path_info(tokens: &TokenStream) -> Option<PathParamInfo> {
     }
 
     // Combine types - use tuple format if multiple, single if one
-    let inner_type = if all_types.len() == 1 {
-        all_types.into_iter().next().unwrap_or_default()
-    } else if all_types.len() > 1 {
-        format!("({})", all_types.join(", "))
-    } else {
-        String::new()
+    let inner_type = match all_types.len().cmp(&1) {
+        std::cmp::Ordering::Equal => all_types.into_iter().next().unwrap_or_default(),
+        std::cmp::Ordering::Greater => format!("({})", all_types.join(", ")),
+        std::cmp::Ordering::Less => String::new(),
     };
 
     Some(PathParamInfo {

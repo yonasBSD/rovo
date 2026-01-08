@@ -49,10 +49,6 @@ fn test_single_u64_path_parameter() {
     let mut op = Operation::default();
     let transform = TransformOperation::new(&mut op);
     let _ = get_user_by_u64::__docs(transform);
-    eprintln!("Direct __docs call - Parameters count: {}", op.parameters.len());
-    for (i, p) in op.parameters.iter().enumerate() {
-        eprintln!("Direct Parameter {}: {:?}", i, p);
-    }
 
     // Now test via router
     let mut api = OpenApi::default();
@@ -67,12 +63,6 @@ fn test_single_u64_path_parameter() {
     let paths = &spec.paths.as_ref().unwrap().paths;
     let user_path = get_path_item(paths.get("/users/{id}").unwrap());
     let get_op = user_path.get.as_ref().unwrap();
-
-    // Debug: print parameters
-    eprintln!("Via router - Parameters count: {}", get_op.parameters.len());
-    for (i, p) in get_op.parameters.iter().enumerate() {
-        eprintln!("Router Parameter {}: {:?}", i, p);
-    }
 
     // Should have the 'id' parameter
     let id_param = find_path_parameter(&get_op.parameters, "id");
