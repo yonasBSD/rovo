@@ -353,17 +353,25 @@ fn extract_path_bindings_from_context(lines: &[&str], current_line: usize) -> Ve
     bindings
 }
 
-/// Check if a string is a valid Rust identifier (alphanumeric + underscore)
+/// Check if a string is a valid Rust identifier
+/// Must start with a letter or underscore, followed by alphanumeric or underscore
 fn is_valid_identifier(s: &str) -> bool {
-    !s.is_empty() && s.chars().all(|c| c.is_alphanumeric() || c == '_')
+    let mut chars = s.chars();
+    match chars.next() {
+        Some(first) => {
+            (first.is_alphabetic() || first == '_')
+                && chars.all(|c| c.is_alphanumeric() || c == '_')
+        }
+        None => false,
+    }
 }
 
 /// Get the list of already documented path parameters
 fn get_documented_path_params(lines: &[&str], current_line: usize) -> Vec<String> {
     let mut documented = Vec::new();
-    let mut in_path_params = false;
+    let mut header_index = None;
 
-    // Look backwards and forwards from current line within the doc block
+    // Look backwards from current line to find "# Path Parameters" header
     for i in (0..=current_line).rev() {
         let trimmed = lines[i].trim();
         if !trimmed.starts_with("///") {
@@ -372,27 +380,36 @@ fn get_documented_path_params(lines: &[&str], current_line: usize) -> Vec<String
 
         let content = trimmed.trim_start_matches("///").trim();
         if content == "# Path Parameters" {
-            in_path_params = true;
+            header_index = Some(i);
             break;
         } else if content.starts_with("# ") {
+            // Hit a different section header, stop searching
             break;
         }
     }
 
-    if !in_path_params {
-        return documented;
-    }
+    // If not in Path Parameters section, return empty
+    let header_idx = match header_index {
+        Some(idx) => idx,
+        None => return documented,
+    };
 
-    // Now scan from section header to current line to find documented params
-    for line in lines.iter().take(current_line + 1) {
+    // Only scan from header+1 to current line (within the Path Parameters section)
+    for line in lines
+        .iter()
+        .skip(header_idx + 1)
+        .take(current_line - header_idx)
+    {
         let trimmed = line.trim();
         if !trimmed.starts_with("///") {
             continue;
         }
 
         let content = trimmed.trim_start_matches("///").trim();
+
+        // Stop if we hit another section header
         if content.starts_with("# ") {
-            continue;
+            break;
         }
 
         // Parse "name: description" format
@@ -1118,5 +1135,51 @@ mod tests {
         let lines = vec!["/// Just a comment", "/// id: some text"];
         let documented = get_documented_path_params(&lines, 1);
         assert!(documented.is_empty());
+    }
+
+    #[test]
+    fn test_is_valid_identifier_rejects_digit_start() {
+        // Identifiers cannot start with digits
+        assert!(!is_valid_identifier("123abc"));
+        assert!(!is_valid_identifier("1"));
+        assert!(!is_valid_identifier("200"));
+        // But can contain digits after first char
+        assert!(is_valid_identifier("abc123"));
+        assert!(is_valid_identifier("_123"));
+        assert!(is_valid_identifier("user_id"));
+        assert!(is_valid_identifier("_"));
+        // Empty is not valid
+        assert!(!is_valid_identifier(""));
+    }
+
+    #[test]
+    fn test_documented_params_ignores_other_sections() {
+        // Ensure we don't pick up "200: description" from Responses section
+        let lines = vec![
+            "/// # Responses",
+            "/// 200: Success response",
+            "/// 404: Not found",
+            "/// # Path Parameters",
+            "/// id: User identifier",
+            "/// ",
+        ];
+        let documented = get_documented_path_params(&lines, 5);
+        // Should only contain "id", not "200" or "404"
+        assert_eq!(documented, vec!["id".to_string()]);
+    }
+
+    #[test]
+    fn test_documented_params_only_scans_path_params_section() {
+        // Test that we only scan within the Path Parameters section
+        let lines = vec![
+            "/// Description",
+            "/// name: This is not a param doc",
+            "/// # Path Parameters",
+            "/// user_id: The user ID",
+            "/// ",
+        ];
+        let documented = get_documented_path_params(&lines, 4);
+        // Should only contain "user_id", not "name"
+        assert_eq!(documented, vec!["user_id".to_string()]);
     }
 }
