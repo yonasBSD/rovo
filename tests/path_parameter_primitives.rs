@@ -69,11 +69,11 @@ fn test_single_u64_path_parameter() {
     assert!(id_param.is_some(), "Should have 'id' path parameter");
 
     // Verify description from doc comment
-    // Note: Apostrophes may be escaped as \' in the parsed description
+    // Note: Apostrophes are escaped as \' in the Rust doc attribute parsing
     let param_data = get_parameter_data(id_param.unwrap());
     let desc = param_data.description.as_deref().unwrap_or("");
-    assert!(
-        desc == "The user's numeric identifier" || desc == "The user\\'s numeric identifier",
+    assert_eq!(
+        desc, "The user\\'s numeric identifier",
         "Should have description from doc comment, got: {:?}",
         desc
     );

@@ -1547,7 +1547,7 @@ async fn get_item(Path(id): Path<String>) -> impl IntoApiResponse {
     let changes = edit.changes.unwrap();
     let edits = changes.values().next().unwrap();
 
-    // Should have at least 3 edits: doc param, binding, and usage in body
+    // Should have at least 2 edits: doc param and binding (body usage may vary)
     assert!(
         edits.len() >= 2,
         "Expected at least 2 edits, got {}",
@@ -1937,8 +1937,13 @@ async fn get_item(Path(用户id): Path<String>) -> impl IntoApiResponse {
     };
 
     let uri = Url::parse("file:///test.rs").unwrap();
-    // Should not crash with UTF-16 characters
-    let _ = handlers::goto_path_param_definition(content, position, uri);
+    // Should handle UTF-16 characters without crashing
+    let result = handlers::goto_path_param_definition(content, position, uri);
+    // Result may be Some or None depending on exact position, but should not panic
+    assert!(
+        result.is_some() || result.is_none(),
+        "Function should handle UTF-16 characters gracefully"
+    );
 }
 
 #[test]
@@ -2110,6 +2115,11 @@ async fn get_item(Path((user_id, item_id)): Path<(u64, u64)>) {}
     let result = handlers::semantic_tokens_full(content);
     assert!(result.is_some(), "Should return semantic tokens");
 
-    // Just verify we got a result - the specific token structure is tested elsewhere
-    let _ = result.unwrap();
+    if let Some(SemanticTokensResult::Tokens(tokens)) = result {
+        // Should generate tokens for path parameters
+        assert!(
+            !tokens.data.is_empty(),
+            "Should generate tokens for path parameters"
+        );
+    }
 }

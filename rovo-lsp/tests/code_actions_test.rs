@@ -996,10 +996,8 @@ async fn get_user(Path(id): Path<u64>) {}
     let titles = get_action_titles(&actions);
 
     assert!(
-        titles
-            .iter()
-            .any(|t| t.contains("path") || t.contains("Path") || t.contains("param")),
-        "Should offer path parameter documentation action, got: {:?}",
+        titles.iter().any(|t| t.contains("Document path param")),
+        "Should offer 'Document path param' action, got: {:?}",
         titles
     );
 }
@@ -1060,11 +1058,13 @@ async fn get_item(Path((id, name)): Path<(u64, String)>) {}
     let titles = get_action_titles(&actions);
 
     // Should offer to document the undocumented 'name' param
-    let has_path_action = titles
-        .iter()
-        .any(|t| t.contains("path") || t.contains("name"));
-    // Note: might not find specific action depending on implementation
-    let _ = has_path_action; // Just checking it doesn't crash
+    assert!(
+        titles
+            .iter()
+            .any(|t| t.contains("Document path param") && t.contains("name")),
+        "Should offer action to document undocumented 'name' param, got: {:?}",
+        titles
+    );
 }
 
 #[test]
@@ -1075,10 +1075,15 @@ fn path_param_action_available_on_doc_line() {
 async fn get_user(Path(id): Path<u64>) {}
 "#;
 
-    // Test on the doc comment line
+    // Test on the doc comment line - should still offer path param action
     let actions = code_actions::get_code_actions(content, range_at_line(1), test_uri());
-    // Should not crash, may or may not offer actions depending on context detection
-    let _ = get_action_titles(&actions);
+    let titles = get_action_titles(&actions);
+
+    assert!(
+        titles.iter().any(|t| t.contains("Document path param")),
+        "Should offer path param action from doc line, got: {:?}",
+        titles
+    );
 }
 
 #[test]
