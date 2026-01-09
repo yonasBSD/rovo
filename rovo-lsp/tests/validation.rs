@@ -390,7 +390,9 @@ async fn get_user(Path(id): Path<u64>) {}
 "#;
     let diagnostics = validate_annotations(content);
     assert_eq!(diagnostics.len(), 1);
-    assert!(diagnostics[0].message.contains("Undocumented path parameter"));
+    assert!(diagnostics[0]
+        .message
+        .contains("Undocumented path parameter"));
     assert!(diagnostics[0].message.contains("'id'"));
     assert_eq!(diagnostics[0].severity, DiagnosticSeverity::Warning);
 }

@@ -996,7 +996,9 @@ async fn get_user(Path(id): Path<u64>) {}
     let titles = get_action_titles(&actions);
 
     assert!(
-        titles.iter().any(|t| t.contains("path") || t.contains("Path") || t.contains("param")),
+        titles
+            .iter()
+            .any(|t| t.contains("path") || t.contains("Path") || t.contains("param")),
         "Should offer path parameter documentation action, got: {:?}",
         titles
     );
@@ -1013,7 +1015,9 @@ async fn get_item(Path((a, b)): Path<(String, u32)>) {}
     let titles = get_action_titles(&actions);
 
     // Should offer to document path params
-    let has_path_action = titles.iter().any(|t| t.contains("path") || t.contains("Path"));
+    let has_path_action = titles
+        .iter()
+        .any(|t| t.contains("path") || t.contains("Path"));
     assert!(
         has_path_action,
         "Should offer path param action for tuple, got: {:?}",
@@ -1056,7 +1060,9 @@ async fn get_item(Path((id, name)): Path<(u64, String)>) {}
     let titles = get_action_titles(&actions);
 
     // Should offer to document the undocumented 'name' param
-    let has_path_action = titles.iter().any(|t| t.contains("path") || t.contains("name"));
+    let has_path_action = titles
+        .iter()
+        .any(|t| t.contains("path") || t.contains("name"));
     // Note: might not find specific action depending on implementation
     let _ = has_path_action; // Just checking it doesn't crash
 }
@@ -1090,7 +1096,9 @@ async fn get_item(
     let titles = get_action_titles(&actions);
 
     // Should offer to document path params from multiline signature
-    let has_path_action = titles.iter().any(|t| t.contains("path") || t.contains("Path"));
+    let has_path_action = titles
+        .iter()
+        .any(|t| t.contains("path") || t.contains("Path"));
     assert!(
         has_path_action,
         "Should offer path action for multiline sig, got: {:?}",
@@ -1126,7 +1134,9 @@ async fn handler(State(app): State<AppState>, Path(id): Path<u64>) {}
     let actions = code_actions::get_code_actions(content, range_at_line(2), test_uri());
     let titles = get_action_titles(&actions);
 
-    let has_path_action = titles.iter().any(|t| t.contains("path") || t.contains("Path"));
+    let has_path_action = titles
+        .iter()
+        .any(|t| t.contains("path") || t.contains("Path"));
     assert!(
         has_path_action,
         "Should offer path action with State extractor, got: {:?}",

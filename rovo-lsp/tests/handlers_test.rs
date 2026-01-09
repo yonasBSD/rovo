@@ -1963,10 +1963,17 @@ async fn get_item(Path(id): Path<String>) -> impl IntoApiResponse {
     let uri = Url::parse("file:///test.rs").unwrap();
     let result = handlers::find_path_param_references(content, position, uri);
 
-    assert!(result.is_some(), "Should find references with multiple usages");
+    assert!(
+        result.is_some(),
+        "Should find references with multiple usages"
+    );
     let refs = result.unwrap();
     // Should find multiple body usages
-    assert!(refs.len() >= 4, "Should find doc, binding, and multiple body usages, got {}", refs.len());
+    assert!(
+        refs.len() >= 4,
+        "Should find doc, binding, and multiple body usages, got {}",
+        refs.len()
+    );
 }
 
 #[test]
@@ -1987,7 +1994,10 @@ async fn get_item(Path(id): Path<String>) {}
     let uri = Url::parse("file:///test.rs").unwrap();
     let result = handlers::find_path_param_references(content, position, uri);
 
-    assert!(result.is_none(), "Should return None for out of bounds line");
+    assert!(
+        result.is_none(),
+        "Should return None for out of bounds line"
+    );
 }
 
 #[test]
@@ -2017,7 +2027,11 @@ async fn get_item(Path(id): Path<String>) -> impl IntoApiResponse {
     let edits = changes.values().next().unwrap();
 
     // Should have edits for doc, binding, and body usages
-    assert!(edits.len() >= 3, "Should update doc, binding, and body usages, got {}", edits.len());
+    assert!(
+        edits.len() >= 3,
+        "Should update doc, binding, and body usages, got {}",
+        edits.len()
+    );
 }
 
 #[test]
