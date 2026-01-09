@@ -88,12 +88,7 @@ pub fn get_completions(content: &str, position: Position) -> Vec<CompletionItem>
         SectionContext::PathParametersSection => {
             // In # Path Parameters section, complete parameter lines
             if after_doc.is_empty() || after_doc.chars().all(|c| c.is_alphanumeric() || c == '_') {
-                return get_path_parameter_line_completions(
-                    content,
-                    &lines,
-                    position.line,
-                    after_doc,
-                );
+                return get_path_parameter_line_completions(&lines, position.line, after_doc);
             }
         }
         SectionContext::ResponsesSection => {
@@ -254,7 +249,6 @@ fn get_example_line_completions() -> Vec<CompletionItem> {
 
 /// Get completions for path parameter lines in # Path Parameters section
 fn get_path_parameter_line_completions(
-    content: &str,
     lines: &[&str],
     current_line: usize,
     filter: &str,
@@ -262,7 +256,7 @@ fn get_path_parameter_line_completions(
     let mut completions = Vec::new();
 
     // Find the Path(...) bindings from the function signature
-    let bindings = extract_path_bindings_from_context(content, lines, current_line);
+    let bindings = extract_path_bindings_from_context(lines, current_line);
 
     // Find which params are already documented
     let documented = get_documented_path_params(lines, current_line);
@@ -303,11 +297,11 @@ fn get_path_parameter_line_completions(
 }
 
 /// Extract path binding names from the function signature near the current line
-fn extract_path_bindings_from_context(
-    _content: &str,
-    lines: &[&str],
-    current_line: usize,
-) -> Vec<String> {
+///
+/// Note: This intentionally does NOT handle struct-destructuring patterns like
+/// `Path(UserId { id })` because those should be documented via the struct's
+/// `JsonSchema` derive rather than the `# Path Parameters` section.
+fn extract_path_bindings_from_context(lines: &[&str], current_line: usize) -> Vec<String> {
     let mut bindings = Vec::new();
 
     // Look forward from current line to find function signature with Path(...)
@@ -333,10 +327,16 @@ fn extract_path_bindings_from_context(
                 &after_path[..close]
             };
 
-            // Parse the bindings
+            // Skip struct-destructuring patterns like Path(UserId { id })
+            // These use JsonSchema for docs, not # Path Parameters section
+            if bindings_str.contains('{') {
+                break;
+            }
+
+            // Parse the bindings - only accept valid Rust identifiers
             for binding in bindings_str.split(',') {
                 let binding = binding.trim();
-                if !binding.is_empty() && binding.chars().all(|c| c.is_alphanumeric() || c == '_') {
+                if !binding.is_empty() && is_valid_identifier(binding) {
                     bindings.push(binding.to_string());
                 }
             }
@@ -351,6 +351,11 @@ fn extract_path_bindings_from_context(
     }
 
     bindings
+}
+
+/// Check if a string is a valid Rust identifier (alphanumeric + underscore)
+fn is_valid_identifier(s: &str) -> bool {
+    !s.is_empty() && s.chars().all(|c| c.is_alphanumeric() || c == '_')
 }
 
 /// Get the list of already documented path parameters
@@ -393,7 +398,7 @@ fn get_documented_path_params(lines: &[&str], current_line: usize) -> Vec<String
         // Parse "name: description" format
         if let Some(colon_pos) = content.find(':') {
             let name = content[..colon_pos].trim();
-            if !name.is_empty() && name.chars().all(|c| c.is_alphanumeric() || c == '_') {
+            if is_valid_identifier(name) {
                 documented.push(name.to_string());
             }
         }
@@ -1104,7 +1109,7 @@ mod tests {
         let content =
             "/// # Path Parameters\n/// \n#[rovo]\nasync fn get_user(Query(q): Query<String>) {}";
         let lines: Vec<&str> = content.lines().collect();
-        let bindings = extract_path_bindings_from_context(content, &lines, 1);
+        let bindings = extract_path_bindings_from_context(&lines, 1);
         assert!(bindings.is_empty());
     }
 

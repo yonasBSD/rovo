@@ -30,15 +30,16 @@ pub fn extract_path_info(tokens: &TokenStream) -> Option<PathParamInfo> {
         let after_open = &token_str[path_pos + skip_len..];
 
         // Find matching closing paren for the binding
+        // Use char_indices() to get byte offsets for safe string slicing
         let mut depth = 1;
         let mut close_pos = 0;
-        for (i, ch) in after_open.chars().enumerate() {
+        for (byte_idx, ch) in after_open.char_indices() {
             match ch {
                 '(' => depth += 1,
                 ')' => {
                     depth -= 1;
                     if depth == 0 {
-                        close_pos = i;
+                        close_pos = byte_idx;
                         break;
                     }
                 }
@@ -88,15 +89,16 @@ pub fn extract_path_info(tokens: &TokenStream) -> Option<PathParamInfo> {
                 let after_angle = &after_type_path[angle_open + 1..];
 
                 // Find matching closing angle bracket
+                // Use char_indices() to get byte offsets for safe string slicing
                 let mut depth = 1;
                 let mut type_end = 0;
-                for (i, ch) in after_angle.chars().enumerate() {
+                for (byte_idx, ch) in after_angle.char_indices() {
                     match ch {
                         '<' => depth += 1,
                         '>' => {
                             depth -= 1;
                             if depth == 0 {
-                                type_end = i;
+                                type_end = byte_idx;
                                 break;
                             }
                         }
@@ -168,13 +170,14 @@ pub fn extract_state_type(tokens: &TokenStream) -> Option<TokenStream> {
             let mut depth = 1;
             let mut close_pos = 0;
 
-            for (i, ch) in after_open.chars().enumerate() {
+            // Use char_indices() to get byte offsets for safe string slicing
+            for (byte_idx, ch) in after_open.char_indices() {
                 if ch == '<' {
                     depth += 1;
                 } else if ch == '>' {
                     depth -= 1;
                     if depth == 0 {
-                        close_pos = i;
+                        close_pos = byte_idx;
                         break;
                     }
                 }
@@ -215,7 +218,6 @@ mod tests {
     #[test]
     fn extracts_single_primitive_binding() {
         let tokens: TokenStream = "Path(id): Path<u64>".parse().unwrap();
-        eprintln!("Token string: '{}'", tokens.to_string());
         let result = extract_path_info(&tokens);
         assert!(result.is_some());
         let info = result.unwrap();
@@ -230,18 +232,15 @@ mod tests {
             "async fn get_user_by_u64(Path(id): Path<u64>) -> Json<String> { }"
                 .parse()
                 .unwrap();
-        eprintln!("Full function token string: '{}'", tokens.to_string());
         let result = extract_path_info(&tokens);
         assert!(
             result.is_some(),
             "Should extract path info from full function"
         );
         let info = result.unwrap();
-        eprintln!("Bindings: {:?}", info.bindings);
-        eprintln!("Inner type: '{}'", info.inner_type);
-        eprintln!("Is struct pattern: {}", info.is_struct_pattern);
         assert_eq!(info.bindings, vec!["id"]);
         assert_eq!(info.inner_type, "u64");
+        assert!(!info.is_struct_pattern);
     }
 
     #[test]
@@ -256,17 +255,15 @@ mod tests {
             "async fn get_user_by_u64(Path(id): Path<u64>) -> Json<String> { }"
         );
         let tokens: TokenStream = code.parse().unwrap();
-        eprintln!("With docs token string: '{}'", tokens.to_string());
         let result = extract_path_info(&tokens);
         assert!(
             result.is_some(),
             "Should extract path info from function with docs"
         );
         let info = result.unwrap();
-        eprintln!("Bindings: {:?}", info.bindings);
-        eprintln!("Inner type: '{}'", info.inner_type);
         assert_eq!(info.bindings, vec!["id"]);
         assert_eq!(info.inner_type, "u64");
+        assert!(!info.is_struct_pattern);
     }
 
     #[test]
@@ -291,9 +288,6 @@ mod tests {
         assert!(result.is_ok(), "Should parse successfully");
 
         let (func_item, doc_info) = result.unwrap();
-
-        eprintln!("func_item.path_params: {:?}", func_item.path_params);
-        eprintln!("doc_info.path_params: {:?}", doc_info.path_params);
 
         assert!(
             func_item.path_params.is_some(),
@@ -363,11 +357,9 @@ mod tests {
         let tokens: TokenStream = "Path(id): Path<Uuid>, Path(name): Path<String>"
             .parse()
             .unwrap();
-        eprintln!("Multiple path extractors: '{}'", tokens.to_string());
         let result = extract_path_info(&tokens);
         assert!(result.is_some(), "Should extract multiple path extractors");
         let info = result.unwrap();
-        eprintln!("Bindings: {:?}", info.bindings);
         assert!(
             info.bindings.contains(&"id".to_string()),
             "Should have 'id'"
@@ -389,14 +381,12 @@ mod tests {
         "#
         .parse()
         .unwrap();
-        eprintln!("Multiline path extractors: '{}'", tokens.to_string());
         let result = extract_path_info(&tokens);
         assert!(
             result.is_some(),
             "Should extract multiple path extractors from multiline"
         );
         let info = result.unwrap();
-        eprintln!("Bindings: {:?}", info.bindings);
         assert!(
             info.bindings.contains(&"id".to_string()),
             "Should have 'id'"
@@ -533,8 +523,8 @@ mod tests {
     fn handles_empty_tuple_binding() {
         let tokens: TokenStream = "Path(()): Path<()>".parse().unwrap();
         let result = extract_path_info(&tokens);
-        // Empty tuple should be handled
-        let _ = result;
+        // Empty tuple should return None or empty bindings - no meaningful extraction
+        assert!(result.is_none() || result.as_ref().is_some_and(|r| r.bindings.is_empty()));
     }
 
     #[test]
@@ -611,8 +601,8 @@ mod tests {
     fn extract_state_handles_empty_type() {
         let tokens: TokenStream = "State<>".parse().unwrap();
         let result = extract_state_type(&tokens);
-        // Empty type should be handled
-        let _ = result;
+        // Empty type should return None since there's nothing to extract
+        assert!(result.is_none());
     }
 
     #[test]
