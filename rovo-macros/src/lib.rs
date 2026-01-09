@@ -33,7 +33,10 @@ fn is_primitive_type(type_name: &str) -> bool {
 
 /// Check if a tuple contains only primitives
 fn is_primitive_tuple(type_str: &str) -> bool {
-    let inner = type_str.trim().trim_start_matches('(').trim_end_matches(')');
+    let inner = type_str
+        .trim()
+        .trim_start_matches('(')
+        .trim_end_matches(')');
     inner.split(',').map(str::trim).all(is_primitive_type)
 }
 
