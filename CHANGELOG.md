@@ -23,22 +23,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [0.3.0] - 2026-01-09
 
-### Breaking Changes
-
-### Added
-
-### Changed
-
-### Fixed
-
-### Migration Guide
-
-<!-- LLM-friendly migration commands go here -->
-
----
-
-## [0.2.10] - 2025-01-09
-
 ### Added
 
 - **Path parameter support**: LSP now provides completions, diagnostics, and code actions for `# Path Parameters` documentation sections
