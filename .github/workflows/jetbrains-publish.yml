@@ -2,6 +2,12 @@ name: Publish JetBrains Plugin
 
 on:
   workflow_call:
+    inputs:
+      ref:
+        description: "Git ref to checkout (tag or branch)"
+        type: string
+        required: false
+        default: ""
     secrets:
       JETBRAINS_CERTIFICATE_CHAIN:
         description: "JetBrains plugin signing certificate chain"
@@ -30,6 +36,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
 
       - name: Free disk space
         run: |
