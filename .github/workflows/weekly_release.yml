@@ -92,6 +92,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.release.outputs.version }}
+      tag: ${{ steps.release.outputs.tag }}
       skipped: ${{ steps.release.outputs.skipped }}
     steps:
       - name: Get token
@@ -125,6 +126,8 @@ jobs:
     needs: release
     if: needs.release.outputs.skipped != 'true'
     uses: ./.github/workflows/vscode-publish.yml
+    with:
+      ref: ${{ needs.release.outputs.tag }}
     secrets: inherit
 
   publish-jetbrains:
@@ -132,6 +135,8 @@ jobs:
     needs: release
     if: needs.release.outputs.skipped != 'true'
     uses: ./.github/workflows/jetbrains-publish.yml
+    with:
+      ref: ${{ needs.release.outputs.tag }}
     secrets: inherit
 
   no-release:

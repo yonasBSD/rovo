@@ -2,6 +2,12 @@ name: Publish VSCode Extension
 
 on:
   workflow_call:
+    inputs:
+      ref:
+        description: "Git ref to checkout (tag or branch)"
+        type: string
+        required: false
+        default: ""
     secrets:
       VSCE_PAT:
         description: "VS Code Marketplace Personal Access Token"
@@ -14,6 +20,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
