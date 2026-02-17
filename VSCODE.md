@@ -11,22 +11,29 @@ This guide covers using Rovo with Visual Studio Code.
 
 ### Installing the Extension
 
-#### Option 1: From VSCode Marketplace (Recommended)
+#### Option 1: From Marketplace (Recommended)
 
-**Marketplace link**: https://marketplace.visualstudio.com/items?itemName=arthurdw.rovo-lsp
+**VS Code Marketplace**: https://marketplace.visualstudio.com/items?itemName=arthurdw.rovo-lsp
 
-**Quick install**: Press `Ctrl+P` (or `Cmd+P` on macOS) and run:
+Quick install in VS Code - press `Ctrl+P` (or `Cmd+P` on macOS) and run:
+```
+ext install arthurdw.rovo-lsp
+```
+
+**Open VSX** (for VSCodium/code-oss users): https://open-vsx.org/extension/arthurdw/rovo-lsp
+
+Quick install in VSCodium - press `Ctrl+P` (or `Cmd+P` on macOS) and run:
 ```
 ext install arthurdw.rovo-lsp
 ```
 
 Or install via the Extensions panel:
 
-1. Open VSCode
+1. Open your editor (VS Code, VSCodium, or code-oss)
 2. Go to **Extensions** (Ctrl+Shift+X / Cmd+Shift+X)
 3. Search for "Rovo"
 4. Click **Install**
-5. Reload VSCode if prompted
+5. Reload your editor if prompted
 
 The extension will automatically install the `rovo-lsp` server on first use (requires Cargo).
 
