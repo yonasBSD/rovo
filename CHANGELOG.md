@@ -21,6 +21,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.4.2] - 2026-03-20
+
+### Bug Fixes
+
+- feat: have wildcard support ([#25](https://github.com/Arthurdw/rovo/pull/25)) by @Arthurdw
+
 ## [0.4.1] - 2026-03-12
 
 ### Features
