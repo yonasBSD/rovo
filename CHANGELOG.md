@@ -21,6 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.4.5] - 2026-04-02
+
+- No notable changes in this release
+
 ## [0.4.4] - 2026-04-02
 
 - No notable changes in this release
