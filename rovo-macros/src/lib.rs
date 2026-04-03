@@ -456,3 +456,50 @@ pub fn rovo(_attr: TokenStream, item: TokenStream) -> TokenStream {
         }
     }
 }
+
+/// Configures `schemars` derives to use rovo's re-exported crate path.
+///
+/// When deriving [`JsonSchema`] via `rovo::schemars::JsonSchema` without `schemars` as a
+/// direct dependency, the derived code fails to resolve the `schemars` crate. This attribute
+/// automatically injects `#[schemars(crate = "::rovo::schemars")]` so it just works.
+///
+/// Place this attribute **above** your `#[derive(...)]`:
+///
+/// ```rust,ignore
+/// use rovo::{schema, schemars::JsonSchema};
+/// use serde::{Serialize, Deserialize};
+///
+/// #[schema]
+/// #[derive(Debug, Serialize, Deserialize, JsonSchema)]
+/// struct CallbackQuery {
+///     code: String,
+///     state: String,
+/// }
+/// ```
+///
+/// If you already have `#[schemars(crate = "...")]` on the item, this macro is a no-op.
+#[proc_macro_attribute]
+pub fn schema(_attr: TokenStream, item: TokenStream) -> TokenStream {
+    let mut input = syn::parse_macro_input!(item as syn::DeriveInput);
+
+    let has_schemars_crate = input.attrs.iter().any(|attr| {
+        if !attr.path().is_ident("schemars") {
+            return false;
+        }
+        let syn::Meta::List(list) = &attr.meta else {
+            return false;
+        };
+        list.tokens
+            .clone()
+            .into_iter()
+            .any(|tt| matches!(tt, proc_macro2::TokenTree::Ident(ref ident) if ident == "crate"))
+    });
+
+    if !has_schemars_crate {
+        input
+            .attrs
+            .push(syn::parse_quote!(#[schemars(crate = "::rovo::schemars")]));
+    }
+
+    quote!(#input).into()
+}

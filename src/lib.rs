@@ -100,7 +100,7 @@
 //! **Special directives:**
 //! - `@rovo-ignore` - Stop processing annotations after this point
 
-pub use rovo_macros::rovo;
+pub use rovo_macros::{rovo, schema};
 
 // Re-export aide and schemars for convenience
 pub use aide;
