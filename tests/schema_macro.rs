@@ -42,3 +42,10 @@ fn schema_macro_works_for_enums() {
     let json = serde_json::to_string(&schema).unwrap();
     assert!(json.contains("MyEnum"));
 }
+
+#[test]
+fn schema_macro_noop_when_crate_already_set() {
+    let schema = schemars::SchemaGenerator::default().into_root_schema_for::<AlreadyAnnotated>();
+    let json = serde_json::to_string(&schema).unwrap();
+    assert!(json.contains("AlreadyAnnotated"));
+}

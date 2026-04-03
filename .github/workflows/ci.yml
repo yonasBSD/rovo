@@ -94,6 +94,9 @@ jobs:
       - name: Check compilation
         run: cargo check --workspace --all-features
 
+      - name: Check examples
+        run: cargo check --manifest-path examples/hello_world/Cargo.toml
+
   coverage:
     name: Code Coverage
     runs-on: ubuntu-latest

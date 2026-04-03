@@ -486,10 +486,12 @@ pub fn schema(_attr: TokenStream, item: TokenStream) -> TokenStream {
         if !attr.path().is_ident("schemars") {
             return false;
         }
-        match &attr.meta {
-            syn::Meta::List(list) => list.tokens.to_string().contains("crate"),
-            _ => false,
-        }
+        let syn::Meta::List(list) = &attr.meta else {
+            return false;
+        };
+        list.tokens.clone().into_iter().any(|tt| {
+            matches!(tt, proc_macro2::TokenTree::Ident(ref ident) if ident == "crate")
+        })
     });
 
     if !has_schemars_crate {
