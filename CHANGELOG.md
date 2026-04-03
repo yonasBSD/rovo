@@ -21,6 +21,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.4.7] - 2026-04-03
+
+### Features
+
+- feat: replace #[schema] with vendored JsonSchema derive ([#30](https://github.com/Arthurdw/rovo/pull/30)) by @Arthurdw
+
 ## [0.4.6] - 2026-04-03
 
 ### Bug Fixes
