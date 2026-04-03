@@ -23,6 +23,12 @@ struct ExplicitCratePath {
     value: i64,
 }
 
+/// Verifies the derive works with generic types.
+#[derive(Debug, JsonSchema)]
+struct Wrapper<T> {
+    inner: T,
+}
+
 #[test]
 fn derive_produces_valid_json_schema() {
     let schema = rovo::schemars::SchemaGenerator::default().into_root_schema_for::<BasicStruct>();
@@ -43,4 +49,12 @@ fn derive_respects_explicit_crate_path() {
         rovo::schemars::SchemaGenerator::default().into_root_schema_for::<ExplicitCratePath>();
     let json = serde_json::to_string(&schema).unwrap();
     assert!(json.contains("ExplicitCratePath"));
+}
+
+#[test]
+fn derive_works_with_generics() {
+    let schema =
+        rovo::schemars::SchemaGenerator::default().into_root_schema_for::<Wrapper<String>>();
+    let json = serde_json::to_string(&schema).unwrap();
+    assert!(json.contains("Wrapper"));
 }

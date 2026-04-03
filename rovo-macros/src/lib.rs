@@ -514,6 +514,13 @@ pub fn derive_json_schema(input: TokenStream) -> TokenStream {
 
     let (impl_generics, ty_generics, where_clause) = hidden.generics.split_for_impl();
 
+    // Require the hidden type to implement JsonSchema so that generic bounds
+    // propagate correctly (schemars adds `T: JsonSchema` on the hidden impl).
+    let extended_where = where_clause.map_or_else(
+        || quote! { where #hidden_name #ty_generics: ::rovo::schemars::JsonSchema },
+        |wc| quote! { #wc, #hidden_name #ty_generics: ::rovo::schemars::JsonSchema },
+    );
+
     quote! {
         const _: () = {
             #[derive(::rovo::__schemars::JsonSchema)]
@@ -522,7 +529,7 @@ pub fn derive_json_schema(input: TokenStream) -> TokenStream {
             #hidden
 
             #[automatically_derived]
-            impl #impl_generics ::rovo::schemars::JsonSchema for #original_name #ty_generics #where_clause {
+            impl #impl_generics ::rovo::schemars::JsonSchema for #original_name #ty_generics #extended_where {
                 fn schema_name() -> ::std::borrow::Cow<'static, str> {
                     let raw = <#hidden_name #ty_generics as ::rovo::schemars::JsonSchema>::schema_name();
                     ::std::borrow::Cow::Owned(raw.replace(stringify!(#hidden_name), stringify!(#original_name)))
